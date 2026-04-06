@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海外営業用 販売管理UI モックアップ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-enterprise/dist/ag-grid-enterprise.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro JP", "Hiragino Kaku Gothic ProN", "Helvetica Neue", Arial, sans-serif;
+            background-color: #f5f5f7;
+            -webkit-font-smoothing: antialiased;
+        }
+        /* モダン・クリーンなAG-Grid のテーマカスタマイズ (Apple Numbersライク) */
+        .ag-theme-alpine {
+            --ag-background-color: #ffffff;
+            --ag-foreground-color: #1d1d1f;
+            --ag-header-background-color: #ffffff;
+            --ag-header-foreground-color: #86868b;
+            --ag-header-font-size: 13px;
+            --ag-header-font-weight: 600;
+            --ag-font-size: 13px;
+            --ag-font-family: inherit;
+            --ag-row-border-color: #e5e5ea;
+            --ag-borders: none;
+            --ag-header-column-separator-display: none;
+            --ag-row-hover-color: #f5f5f7;
+            --ag-selected-row-background-color: #007aff15; /* 淡いブルー */
+            --ag-control-panel-background-color: #ffffff;
+            --ag-wrapper-border-radius: 10px;
+        }
+        /* 列名が切れないようにヘッダーのパディングを微調整 */
+        .ag-theme-alpine .ag-header-cell {
+            padding-left: 12px;
+            padding-right: 12px;
+        }
+        /* ヘッダーアイコン（三点チョボ等）を右側に統一 */
+        .ag-header-cell.ag-right-aligned-header .ag-header-cell-label,
+        .ag-header-cell.ag-numeric-header .ag-header-cell-label {
+            flex-direction: row !important;
+        }
+
+        /* アラート用・固定列用のクラス */
+        .price-warning {
+            background-color: #fffac9 !important;
+            color: #d97706 !important;
+            font-weight: 600;
+        }
+        .price-warning::after {
+            content: ' \f071';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            font-size: 10px;
+            margin-left: 4px;
+            color: #f59e0b;
+        }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d2d2d7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #86868b; }
+        
+        .ag-cell-locked { background-color: #fafafa !important; color: #86868b !important; }
+    </style>
+</head>
+<body class="bg-[#f5f5f7] h-screen flex flex-col antialiased text-[#1d1d1f]">
+
+    <!-- Login Overlay (Mock RBAC Authentication) -->
+    <div id="loginOverlay" class="fixed inset-0 bg-slate-900 bg-opacity-80 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-96 max-w-full">
+            <div class="text-center mb-6">
+                <i class="fas fa-ship text-5xl text-blue-800 mb-3 block"></i>
+                <h2 class="text-2xl font-bold text-gray-800">販売管理システム</h2>
+                <p class="text-sm text-gray-500 mt-1">デモンストレーション・ログイン</p>
+            </div>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">ユーザー / 権限の選択</label>
+                    <select id="loginUserSelect" class="w-full border-gray-300 rounded shadow-sm p-2.5 bg-gray-50 border focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="admin">役員・管理者 (全データ閲覧/保護解除)</option>
+                        <option value="matsuoka">営業: 松岡 (自身のデータのみ表示)</option>
+                        <option value="ohtani">営業: 大谷 (自身のデータのみ表示)</option>
+                    </select>
+                </div>
+                <button onclick="performLogin()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 px-4 rounded-lg shadow transition">
+                    システムにログイン
+                </button>
+                <div class="mt-4 text-xs text-gray-600 bg-gray-100 p-3 rounded border border-gray-200">
+                    <i class="fas fa-info-circle text-blue-600"></i> このデモでは、選択した権限に応じて画面裏での認証が走り、表示されるデータ（My View）が自動フィルタリング・保護されます。
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Header -->
+    <header class="bg-white text-[#1d1d1f] p-4 px-6 flex justify-between items-center border-b border-[#e5e5ea]">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow-sm">
+                <i class="fas fa-cube text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight">販売管理システム <span class="text-xs font-semibold text-gray-500 ml-2 bg-gray-100 px-2 py-1 rounded-full">海外向け</span></h1>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="bg-slate-50 px-4 py-2 rounded-full text-sm flex items-center border border-slate-200 shadow-sm">
+                <img src="https://ui-avatars.com/api/?name=User&background=eff6ff&color=1e40af" class="w-6 h-6 rounded-full mr-2" id="avatarIcon">
+                <span class="text-slate-700 font-semibold" id="headerUserName">未ログイン</span>
+            </div>
+            <button class="text-slate-500 hover:text-slate-800 transition">
+                <i class="fas fa-cog text-xl"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Toolbar -->
+    <div class="bg-white pt-4 pb-3 border-b border-[#e5e5ea] items-center px-6 flex flex-wrap gap-y-3 justify-between">
+        <div class="flex flex-wrap items-center gap-2">
+            <!-- Primary Action -->
+            <button class="whitespace-nowrap bg-blue-600 text-white px-4 py-1.5 rounded-lg shadow-sm hover:bg-blue-700 text-sm font-semibold transition" onclick="saveData()">
+                <i class="fas fa-save mr-1"></i> 保 存
+            </button>
+            <span class="border-l border-gray-200 mx-2 h-6"></span>
+
+            <!-- Secondary Actions: New items -->
+            <button class="whitespace-nowrap bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 text-sm font-medium transition shadow-sm" onclick="addRow('quote')">
+                <i class="fas fa-plus text-gray-400 mr-1"></i> 見積追加 <span class="ml-1 text-[10px] text-gray-400" title="Alt+Qキー">Alt+Q</span>
+            </button>
+            <button class="whitespace-nowrap bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 text-sm font-medium transition shadow-sm" onclick="addRow('order')">
+                <i class="fas fa-plus text-gray-400 mr-1"></i> 受注追加 <span class="ml-1 text-[10px] text-gray-400" title="Alt+Oキー">Alt+O</span>
+            </button>
+            <button class="whitespace-nowrap bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 text-sm font-medium transition shadow-sm" onclick="addRow('po')">
+                <i class="fas fa-plus text-gray-400 mr-1"></i> 発注追加 <span class="ml-1 text-[10px] text-gray-400" title="Alt+Pキー">Alt+P</span>
+            </button>
+            
+            <span class="border-l border-gray-200 mx-1 h-6"></span>
+
+            <!-- Secondary Actions: Process -->
+            <button class="whitespace-nowrap bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 text-sm font-medium transition shadow-sm" onclick="splitRow()" title="一部引当などで数量を別行に切り出します">
+                <i class="fas fa-cut text-gray-400 mr-1"></i> 行を分割 <span class="ml-1 text-[10px] text-gray-400" title="Alt+Dキー">Alt+D</span>
+            </button>
+            <button class="whitespace-nowrap bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 text-sm font-medium transition shadow-sm" onclick="kitRows()" title="複数行を消費して新しいキット・組品を生成します">
+                <i class="fas fa-box-open text-gray-400 mr-1"></i> 加工・セット <span class="ml-1 text-[10px] text-gray-400" title="Alt+Kキー">Alt+K</span>
+            </button>
+            <button class="whitespace-nowrap bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 text-sm font-medium transition shadow-sm" onclick="unlockRowForRevision()">
+                <i class="fas fa-unlock text-gray-400 mr-1"></i> ロック解除 <span class="ml-1 text-[10px] text-gray-400" title="Alt+Uキー">Alt+U</span>
+            </button>
+
+            <span class="border-l border-gray-200 mx-1 h-6"></span>
+            
+            <!-- Destructive Action -->
+            <button class="whitespace-nowrap bg-white border border-gray-300 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 text-sm font-medium transition shadow-sm" onclick="archiveSelected()">
+                <i class="fas fa-eye-slash mr-1"></i> 非表示
+            </button>
+            <span class="border-l border-slate-200 mx-1"></span>
+            <button class="whitespace-nowrap bg-white border border-slate-200 text-slate-500 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-50 text-sm font-medium transition" onclick="customUndo()" title="元に戻す (Ctrl+Z)">
+                <i class="fas fa-undo"></i>
+            </button>
+            <button class="whitespace-nowrap bg-white border border-slate-200 text-slate-500 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-50 text-sm font-medium transition" onclick="customRedo()" title="やり直し (Ctrl+Y)">
+                <i class="fas fa-redo"></i>
+            </button>
+        </div>
+        <div class="flex items-center overflow-x-auto w-full xl:w-auto mt-2 xl:mt-0">
+            <div class="flex items-center space-x-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                <span class="text-xs font-semibold text-gray-500 px-2 min-w-max">書類生成</span>
+                <button class="bg-white border border-gray-200 text-gray-700 px-3 py-1 rounded shadow-sm hover:bg-gray-50 text-xs font-medium transition min-w-max">
+                    見積書
+                </button>
+                <button class="bg-white border border-gray-200 text-gray-700 px-3 py-1 rounded shadow-sm hover:bg-gray-50 text-xs font-medium transition min-w-max">
+                    Sales Note
+                </button>
+                <button class="bg-white border border-gray-200 text-gray-700 px-3 py-1 rounded shadow-sm hover:bg-gray-50 text-xs font-medium transition min-w-max">
+                    発注書
+                </button>
+                <button class="bg-white border border-gray-200 text-gray-700 px-3 py-1 rounded shadow-sm hover:bg-gray-50 text-xs font-medium transition min-w-max">
+                    Proforma
+                </button>
+                <button class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-1 rounded shadow-sm hover:bg-blue-100 text-xs font-bold transition min-w-max" onclick="generateInvoice()">
+                    Invoice
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- Task Tabs -->
+    <div class="mt-4 flex space-x-6 border-b border-gray-200 px-8 text-sm">
+        <button onclick="setTabFilter('dashboard')" id="tab_dashboard" class="pb-3 text-gray-500 hover:text-gray-800 font-semibold transition border-b-2 border-transparent flex items-center"><i class="fas fa-chart-pie mr-2"></i>ダッシュボード</button>
+        <button onclick="setTabFilter('all')" id="tab_all" class="pb-3 text-blue-600 font-bold border-b-2 border-blue-600 transition">すべての案件</button>
+        <button onclick="setTabFilter('alert_po')" id="tab_alert_po" class="pb-3 text-gray-500 hover:text-gray-800 font-semibold transition border-b-2 border-transparent flex items-center"><span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span>未発注</button>
+        <button onclick="setTabFilter('pending_invoice')" id="tab_pending_invoice" class="pb-3 text-gray-500 hover:text-gray-800 font-semibold transition border-b-2 border-transparent flex items-center"><span class="w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>請求待ち</button>
+        <button onclick="setTabFilter('archived')" id="tab_archived" class="pb-3 text-gray-500 hover:text-gray-800 font-semibold transition border-b-2 border-transparent ml-auto"><i class="fas fa-archive mr-1 text-gray-400"></i>アーカイブ</button>
+    </div>
+
+    <!-- Instructions -->
+    <div class="px-8 mt-4 text-xs text-gray-500 flex items-center">
+        <i class="fas fa-info-circle mr-2 text-gray-400"></i>
+        <span>右下のセルドラッグでの一括コピー、または項目セル（品番など）のダブルクリックで入力履歴・補完機能を素早く呼び出せます。</span>
+    </div>
+
+    <!-- Main Grid Container -->
+    <div id="gridContainer" class="flex-grow p-6 pt-2 flex flex-col min-h-0 min-w-0">
+        <!-- AG-Grid -->
+        <div id="myGrid" class="ag-theme-alpine w-full h-full min-h-[400px] border border-gray-200 shadow-sm rounded-xl overflow-hidden"></div>
+    </div>
+    
+    <!-- Dashboard Container -->
+    <div id="dashboardContainer" class="hidden flex-grow p-6 pt-4 bg-gray-50 overflow-y-auto">
+        <h2 class="text-xl font-bold text-gray-800 mb-6">個人ダッシュボード（進行中のタスクサマリー）</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 border-l-4 border-l-blue-500">
+                <h3 class="text-gray-500 font-bold text-sm">自分が担当する有効案件</h3>
+                <p class="text-4xl font-black text-gray-800 mt-3" id="dashOrders">0<span class="text-lg font-bold text-gray-500 ml-1">件</span></p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 border-l-4 border-l-green-500">
+                <h3 class="text-gray-500 font-bold text-sm">今月の出荷予定</h3>
+                <p class="text-4xl font-black text-gray-800 mt-3" id="dashShipping">0<span class="text-lg font-bold text-gray-500 ml-1">件</span></p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 border-l-4 border-l-indigo-500">
+                <h3 class="text-gray-500 font-bold text-sm">推定 粗利合計 (月間)</h3>
+                <p class="text-4xl font-black text-gray-800 mt-3" id="dashProfit">¥0</p>
+            </div>
+        </div>
+        
+        <div class="mt-8 bg-blue-50 p-6 rounded-xl border border-blue-100">
+            <h3 class="text-blue-800 font-bold mb-3"><i class="fas fa-lightbulb text-yellow-500 mr-2"></i>ダッシュボードの拡張方針（Phase 2）</h3>
+            <p class="text-sm text-gray-700 leading-relaxed">
+                現在の数値はモック仕様のためランダムまたは仮計算ですが、本番環境では「売上推移グラフ（棒グラフや折れ線グラフ）」や「最近のエラー一覧」など、ログインユーザーの業務に必要な指標をここに一元化します。<br>
+                これにより、全データをグリッド上でフィルタリングする前に、現状の成績や危険な案件を瞬時に把握できるようになります。
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. 初期設定・状態管理＆フルUNDO統合
+        // ==========================================
+        let hasUnsavedChanges = false;
+
+        // --- 完全統合型 UNDO/REDO システム ---
+        let customUndoStack = [];
+        let customRedoStack = [];
+        let lastGridDataString = "[]";
+        let undoTimeout = null;
+
+        function getCurrentGridData() {
+            const data = [];
+            if(gridApi) gridApi.forEachNode(node => data.push({...node.data}));
+            return data;
+        }
+
+        /**
+         * 変更状態をコミットキューに入れ、0.1秒後にUndoスタックへスナップショットを積む
+         * @desc デバウンス処理により、連続する変更イベントを1つにまとめる
+         */
+        function queueCommitState() {
+            if(undoTimeout) clearTimeout(undoTimeout);
+            undoTimeout = setTimeout(() => {
+                const currentJSON = JSON.stringify(getCurrentGridData());
+                if (currentJSON !== lastGridDataString && lastGridDataString !== "[]") {
+                    customUndoStack.push(JSON.parse(lastGridDataString));
+                    customRedoStack = [];
+                    if (customUndoStack.length > 50) customUndoStack.shift();
+                }
+                lastGridDataString = currentJSON;
+            }, 100);
+        }
+
+        function customUndo() {
+            if (customUndoStack.length > 0) {
+                customRedoStack.push(JSON.parse(lastGridDataString));
+                const previousData = customUndoStack.pop();
+                if(gridApi.setGridOption) {
+                    gridApi.setGridOption('rowData', previousData);
+                } else {
+                    gridApi.setRowData(previousData);
+                }
+                hasUnsavedChanges = true;
+                window._fullDummyData = previousData; 
+                lastGridDataString = JSON.stringify(previousData);
+                console.log("【統合UNDO】状態を元に戻しました。");
+            }
+        }
+
+        function customRedo() {
+            if (customRedoStack.length > 0) {
+                customUndoStack.push(JSON.parse(lastGridDataString));
+                const nextData = customRedoStack.pop();
+                if(gridApi.setGridOption) {
+                    gridApi.setGridOption('rowData', nextData);
+                } else {
+                    gridApi.setRowData(nextData);
+                }
+                hasUnsavedChanges = true;
+                window._fullDummyData = nextData; 
+                lastGridDataString = JSON.stringify(nextData);
+                console.log("【統合REDO】やり直しました。");
+            }
+        }
+
+        // キーボードショートカットのインターセプト (Ctrl+Z, Ctrl+Y, Alt+追加)
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                if (e.shiftKey) {
+                    customRedo();
+                } else {
+                    customUndo();
+                }
+                e.preventDefault();
+                e.stopPropagation();
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+                customRedo();
+                e.preventDefault();
+                e.stopPropagation();
+            } else if (e.altKey && e.key.toLowerCase() === 'q') {
+                addRow('quote');
+                e.preventDefault();
+            } else if (e.altKey && e.key.toLowerCase() === 'o') {
+                addRow('order');
+                e.preventDefault();
+            } else if (e.altKey && e.key.toLowerCase() === 'p') {
+                addRow('po');
+                e.preventDefault();
+            } else if (e.altKey && e.key.toLowerCase() === 'd') {
+                splitRow();
+                e.preventDefault();
+            } else if (e.altKey && e.key.toLowerCase() === 'h') {
+                archiveSelected();
+                e.preventDefault();
+            } else if (e.altKey && e.key.toLowerCase() === 'u') {
+                unlockRowForRevision();
+                e.preventDefault();
+            } else if (e.altKey && e.key.toLowerCase() === 'k') {
+                kitRows();
+                e.preventDefault();
+            }
+        }, true); // ← キャプチャフェーズで処理
+
+        // 【安全対策】未保存でページを閉じようとした時の警告
+        window.addEventListener('beforeunload', function (e) {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '保存されていない変更があります。本当に閉じますか？';
+            }
+        });
+
+        // ==========================================
+        // 2. モック用データベース＆自動補完ロジック
+        // ==========================================
+        // バックエンドのDBにある商品マスタ・過去価格マスタの代わり
+        const itemMasterDB = {
+            'MW-0806T': { itemName: 'モビロンテープ 8000D 6mm 透明', category: 'PUテープ', costPrice: 120.0, salesPrice: 200.0 },
+            'RIBBON-001': { itemName: 'サテンリボン 9mm 赤', category: 'リボン', costPrice: 45.0, salesPrice: 80.0 },
+            'BTN-005': { itemName: '貝ボタン 15mm', category: 'ボタン', costPrice: 30.0, salesPrice: 50.0 },
+            'LACE-WH': { itemName: 'コットンレース 白', category: 'レース', costPrice: 200.0, salesPrice: 450.0 },
+            'ZIP-YKK': { itemName: 'YKKファスナー 20cm', category: 'パーツ', costPrice: 80.0, salesPrice: 150.0 }
+        };
+
+        // --- 過去単価のふんわり表示用 レンダラー ---
+        function priceRenderer(params) {
+            const val = params.value ? parseFloat(params.value).toLocaleString() : "";
+            
+            // マスタから参照価格をリアルタイムに引き当てる（初期データ表示時にも確実に対応するため）
+            let refVal = "";
+            if (params.data && params.data.itemCode && itemMasterDB[params.data.itemCode]) {
+                const master = itemMasterDB[params.data.itemCode];
+                if (params.colDef.field === 'costPrice' && master.costPrice) refVal = parseFloat(master.costPrice).toLocaleString();
+                if (params.colDef.field === 'salesPrice' && master.salesPrice) refVal = parseFloat(master.salesPrice).toLocaleString();
+            }
+            
+            if (!val && refVal) {
+               // 値が未入力の時は参考だけ表示
+               return `<div class="flex flex-col items-end leading-[1.2] pt-1"><span class="text-transparent text-xs select-none">0</span><span class="text-[10px] text-gray-400 font-normal select-none -mt-1">(参考: ¥${refVal})</span></div>`;
+            } else if (val && refVal) {
+               // 値が入力されている時
+               return `<div class="flex flex-col items-end leading-[1.2] pt-1"><span class="text-[13px] font-medium">${val}</span><span class="text-[10px] text-gray-400 font-normal select-none -mt-1">(前回: ¥${refVal})</span></div>`;
+            } else if (val) {
+               return `<span class="text-[13px] font-medium pt-1 block">${val}</span>`;
+            }
+            return val;
+        }
+
+        /**
+         * セル値変更時の連動処理（マスタ補完・SFA逆算・自動掛率計算）
+         * @param {Object} params - AG-Grid セル変更イベントパラーメータ
+         */
+        function onCellValueChanged(params) {
+            hasUnsavedChanges = true; // 編集されたらフラグを立てる
+            const saveBtn = document.querySelector('.fa-save');
+            if (saveBtn) {
+                saveBtn.classList.add('text-blue-600');
+            }
+
+            const colId = params.colDef.field;
+            const rowData = params.data;
+
+            // 品番が変更されたら、自動で品名等を補完する
+            if (colId === 'itemCode' && params.newValue) {
+                const masterData = itemMasterDB[params.newValue];
+                if (masterData) {
+                    params.node.setDataValue('itemName', masterData.itemName);
+                    params.node.setDataValue('category', masterData.category);
+                    
+                    // 単価欄の再描画を呼び出して「ふんわり表示」を即座にUIに乗せる
+                    if (params.api) {
+                        params.api.refreshCells({ rowNodes: [params.node], columns: ['costPrice', 'salesPrice'] });
+                    }
+                } else {
+                    console.log("【裏側処理】新規品番 " + params.newValue + " を検知しました。保存時に自動でマスタ追加されます。");
+                }
+            }
+
+            // SFA (Sun Fashion America) 計算ロジック
+            // エンドユーザー単価 ＝ 仕入単価 × カテゴリ倍率
+            // 本社仕切値(salesPrice) = エンドユーザー単価 × 現法取り分(0.7)
+            const isSFA = (rowData.customer === 'Sun Fashion America' || rowData.customer === 'NY Sub' || rowData.customer === 'アメリカ現法');
+            
+            if (isSFA) {
+                if (colId === 'costPrice' || colId === 'category' || colId === 'customer') {
+                    if (rowData.costPrice && rowData.category) {
+                        let catRate = 2.0; // default
+                        if(rowData.category === 'リボン') catRate = 2.5;
+                        if(rowData.category === 'レース') catRate = 3.0;
+                        if(rowData.category === 'PUテープ') catRate = 1.8;
+                        
+                        const endUserPrice = rowData.costPrice * catRate;
+                        const hqSalesPrice = endUserPrice * 0.7; // 30% margin for local sub
+
+                        if (rowData.endUserPrice !== endUserPrice) params.node.setDataValue('endUserPrice', endUserPrice);
+                        if (rowData.salesPrice !== hqSalesPrice) params.node.setDataValue('salesPrice', hqSalesPrice);
+                        if (rowData.markupRate !== '現法自動') params.node.setDataValue('markupRate', '現法自動');
+                    }
+                }
+            } else {
+                // 通常取引における 掛率 vs 手動 のハイブリッド計算
+                
+                // ユーザーが販売単価を手動で上書きしたか判定
+                if (colId === 'salesPrice') {
+                     // 直前の予測値と違うなら手動とみなす
+                     let isAutoSet = false;
+                     if (rowData.markupRate && rowData.markupRate !== '手動(ﾏﾆｭｱﾙ)' && rowData.markupRate !== '現法自動') {
+                         const rate = parseFloat(rowData.markupRate);
+                         if (!isNaN(rate) && rowData.costPrice) {
+                             const expected = rowData.costPrice * rate;
+                             // 浮動小数点誤差を考慮（APIからの自動設定かどうかの判定）
+                             if (Math.abs(parseFloat(params.newValue) - expected) < 0.001) {
+                                 isAutoSet = true;
+                             }
+                         }
+                     }
+                     
+                     if (!isAutoSet && rowData.markupRate !== '手動(ﾏﾆｭｱﾙ)' && rowData.markupRate !== '現法自動') {
+                         params.node.setDataValue('markupRate', '手動(ﾏﾆｭｱﾙ)');
+                     }
+                }
+                
+                // 仕入単価または掛率が変わった場合 → 販売単価を自動計算
+                if (colId === 'costPrice' || colId === 'markupRate') {
+                    if (rowData.markupRate && rowData.markupRate !== '手動(ﾏﾆｭｱﾙ)' && rowData.markupRate !== '現法自動') {
+                        const rate = parseFloat(rowData.markupRate);
+                        if (!isNaN(rate) && rowData.costPrice) {
+                            const calculatedSales = rowData.costPrice * rate;
+                            if (rowData.salesPrice !== calculatedSales) {
+                                params.node.setDataValue('salesPrice', calculatedSales);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 編集完了後、状態を保存してUNDOスタックに積む
+            queueCommitState();
+        }
+
+        // 価格警告チェックのロジック
+        const priceCellClassRules = {
+            'price-warning': params => {
+                if (!params.value || !params.data.itemCode) return false;
+                const history = itemMasterDB[params.data.itemCode];
+                if (!history) return false; // 過去の履歴がない新しい品番の場合は警告しない
+
+                
+                // 列名に応じて仕入か販売かを判断し、過去単価と違う場合はTrueを返す（黄色にする）
+                if (params.colDef.field === 'costPrice') {
+                    return parseFloat(params.value) !== history.costPrice;
+                }
+                if (params.colDef.field === 'salesPrice') {
+                    return parseFloat(params.value) !== history.salesPrice;
+                }
+                return false;
+            }
+        };
+
+        // ==========================================
+        // 3. AG-Grid 行定義・カラム定義
+        // ==========================================
+        // UI工夫: 横スクロール対策としてのカラムグループ化
+        const isCellEditable = params => !params.data.locked;
+        const lockedCellClassRules = { 'ag-cell-locked': params => params.data.locked };
+
+        const columnDefs = [
+            { 
+               headerName: "基本情報", 
+               children: [
+                   { headerName: "", field: "selected", checkboxSelection: true, headerCheckboxSelection: true, width: 40, pinned: 'left' },
+                   { headerName: "ｽﾃｰﾀｽ", field: "status", editable: isCellEditable, width: 90, pinned: 'left', cellClassRules: lockedCellClassRules,
+                     cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['見積中', '受注済', '発注済', '出荷済', '請求待ち', '入金済', 'キャンセル'] },
+                     cellStyle: params => {
+                         if (params.data.locked) return { backgroundColor: '#f8fafc', color: '#94a3b8' };
+                         if (params.value === 'キャンセル') return { backgroundColor: '#f3f4f6', color: '#9ca3af', textDecoration: 'line-through' };
+                         if (params.value === '受注済' && !params.data.poNo) return { backgroundColor: '#fee2e2', color: '#b91c1c', fontWeight: 'bold' };
+                         if (params.value === '発注済') return { color: '#047857' };
+                         if (params.value === '請求待ち') return { backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold' };
+                         return null;
+                     }
+                   },
+                   { headerName: "見積番号", field: "quoteNo", editable: false, width: 110, pinned: 'left', cellStyle: { backgroundColor: '#f9fafb', color: '#6b7280' } },
+                   { headerName: "受注日", field: "orderDate", editable: isCellEditable, width: 105, pinned: 'left', cellClassRules: lockedCellClassRules },
+                   { headerName: "受注番号(PO等)", field: "orderId", editable: isCellEditable, width: 130, pinned: 'left', cellClassRules: lockedCellClassRules },
+                   { headerName: "担当者", field: "rep", editable: false, width: 85, tooltipValueGetter: () => "将来はログインユーザーで自動固定されます" },
+               ]
+            },
+            { 
+               headerName: "取引情報", 
+               children: [
+                   { headerName: "得意先", field: "customer", editable: isCellEditable, width: 140, cellClassRules: lockedCellClassRules },
+                   { headerName: "エンド顧客", field: "endUser", editable: isCellEditable, width: 140, cellClassRules: lockedCellClassRules },
+                   { headerName: "仕入先", field: "supplier", editable: isCellEditable, width: 140, cellClassRules: lockedCellClassRules },
+               ]
+            },
+            { 
+               headerName: "商品情報", 
+               children: [
+                   { headerName: "カテゴリ", field: "category", editable: isCellEditable, width: 110, cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['PUテープ', 'リボン', 'レース', 'ボタン', 'パーツ'] }, cellClassRules: lockedCellClassRules },
+                   { headerName: "品番", field: "itemCode", editable: isCellEditable, width: 130, cellClassRules: lockedCellClassRules },
+                   { headerName: "サイズ", field: "itemSize", editable: isCellEditable, width: 90, cellClassRules: lockedCellClassRules },
+                   { headerName: "カラー(色)", field: "itemColor", editable: isCellEditable, width: 95, cellClassRules: lockedCellClassRules },
+                   { headerName: "品名・仕様詳細", field: "itemName", editable: isCellEditable, width: 190, cellClassRules: lockedCellClassRules },
+                   { headerName: "原産国", field: "origin", editable: isCellEditable, width: 95, cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JP', 'CN', 'US', 'TW', 'VN', 'TH', 'EU'] }, cellClassRules: lockedCellClassRules },
+                   { headerName: "数量", field: "qty", editable: isCellEditable, width: 85, type: 'numericColumn', cellClassRules: lockedCellClassRules },
+                   { headerName: "単位", field: "unit", editable: isCellEditable, width: 80, cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['m', 'kg', 'yd', 'pcs', 'Roll'] }, cellClassRules: lockedCellClassRules }
+               ]
+            },
+            { 
+               headerName: "価格・採算", 
+               children: [
+                   { headerName: "仕入単価", field: "costPrice", editable: isCellEditable, width: 100, type: 'numericColumn', cellClassRules: { ...priceCellClassRules, ...lockedCellClassRules }, cellRenderer: priceRenderer },
+                   { headerName: "仕入通貨", field: "costCurrency", editable: isCellEditable, width: 90, cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] }, cellClassRules: lockedCellClassRules },
+                   { headerName: "販売掛率", field: "markupRate", editable: isCellEditable, width: 100, cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['1.2', '1.3', '1.5', '2.0', '手動(ﾏﾆｭｱﾙ)'] }, cellClassRules: lockedCellClassRules },
+                   { headerName: "販売単価", field: "salesPrice", editable: isCellEditable, width: 100, type: 'numericColumn', cellClassRules: { ...priceCellClassRules, ...lockedCellClassRules }, cellRenderer: priceRenderer },
+                   { headerName: "ｴﾝﾄﾞ顧客単価", field: "endUserPrice", editable: isCellEditable, width: 110, type: 'numericColumn', cellStyle: params => (params.data.customer==='Sun Fashion America' || params.data.customer==='NY Sub') ? {backgroundColor:'#fff7ed'} : null, cellClassRules: lockedCellClassRules },
+                   { headerName: "販売通貨", field: "salesCurrency", editable: isCellEditable, width: 90, cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['USD', 'JPY', 'EUR', 'CNY'] }, cellClassRules: lockedCellClassRules },
+                   { headerName: "諸経費", field: "miscCost", editable: isCellEditable, width: 90, type: 'numericColumn', cellClassRules: lockedCellClassRules },
+                   { headerName: "経費通貨", field: "miscCurrency", editable: isCellEditable, width: 90, cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'CNY', 'EUR'] }, cellClassRules: lockedCellClassRules },
+                   { headerName: "粗利(円)", field: "grossProfitJpy", editable: false, width: 120, type: 'numericColumn', cellStyle: { backgroundColor: '#ecfeff', fontWeight: 'bold', color: '#0369a1' },
+                     valueGetter: params => {
+                         if (!params.data.salesPrice || !params.data.qty || !params.data.costPrice) return null;
+                         const baseRateTTB = 143; const baseRateTTS = 145; 
+                         const appliedTTB = baseRateTTB + 0.5; const appliedTTS = baseRateTTS - 0.5;
+                         
+                         let salesJPY = params.data.salesCurrency === 'JPY' ? params.data.salesPrice : params.data.salesPrice * appliedTTB;
+                         let costJPY = params.data.costCurrency === 'JPY' ? params.data.costPrice : params.data.costPrice * appliedTTS;
+                         let miscJPY = params.data.miscCost ? (params.data.miscCurrency === 'JPY' ? params.data.miscCost : params.data.miscCost * appliedTTS) : 0;
+                         
+                         const gp = (salesJPY * params.data.qty) - (costJPY * params.data.qty) - miscJPY;
+                         return Math.floor(gp).toLocaleString();
+                     }
+                   },
+               ]
+            },
+            { 
+               headerName: "日程・書類管理", 
+               children: [
+                   { headerName: "工場出荷予定", field: "factoryDate", editable: true, width: 120 },
+                   { headerName: "BL DATE", field: "blDate", editable: true, width: 110, cellStyle: { backgroundColor: '#eff6ff' } },
+                   { headerName: "発注日", field: "poDate", editable: false, width: 100, cellStyle: { color: '#6b7280' } },
+                   { headerName: "発注番号", field: "poNo", editable: false, width: 120, cellStyle: { backgroundColor: '#f9fafb', color: '#6b7280' } },
+                   { headerName: "Invoice日", field: "invoiceDate", editable: false, width: 100, cellStyle: { color: '#6b7280' } },
+                   { headerName: "Invoice No.", field: "invoiceNo", editable: false, width: 130, cellStyle: { backgroundColor: '#f9fafb', color: '#6b7280' } },
+                   { headerName: "関連リンク", field: "linkId", editable: false, width: 110, cellStyle: { color: '#3b82f6', fontWeight: 'bold' } },
+                   { headerName: "社内備考", field: "comments", editable: true, width: 160 }
+               ]
+            }
+        ];
+
+        // 各データに一意のIDを付与（UNDO時のスクロール位置保持のため）
+        let globalIdCounter = 1;
+
+        // Mock Database
+        window._fullDummyData = [
+            { 
+                id: 'row_' + (globalIdCounter++), status: "発注済", quoteNo: "QT-260320-01", orderDate: "2026/04/01", orderId: "ABC-123", rep: "松岡", customer: "Shanghai Sub", endUser: "", supplier: "A社",
+                category: "PUテープ", itemCode: "MW-0806T", itemSize: "8000D 6mm", itemColor: "透明(Clear)", itemName: "モビロンテープ", origin: "JP", qty: 20, unit: "kg",
+                costPrice: 120.0, costCurrency: "JPY", markupRate: "1.5", salesPrice: 200.0, salesCurrency: "USD", miscCost: 50, miscCurrency: "JPY",
+                factoryDate: "2026/04/10", blDate: "2026/04/15", poNo: "PO-260401-A-01", invoiceNo: "INV-SH-001",
+                poDate: "2026/04/02", invoiceDate: "", paymentStatus: "前払済", paymentDate: "2026/03/30", comments: "特になし"
+            },
+            { 
+                id: 'row_' + (globalIdCounter++), status: "請求待ち", quoteNo: "QT-260325-05", orderDate: "2026/04/02", orderId: "USPO-9876", rep: "松岡", customer: "NY Sub", endUser: "", supplier: "国内メーカーB",
+                category: "リボン", itemCode: "RIBBON-001", itemSize: "9mm", itemColor: "赤(Red)", itemName: "サテンリボン", origin: "CN", qty: 500, unit: "Roll",
+                costPrice: 50.0, costCurrency: "CNY", markupRate: "1.3", salesPrice: 80.0, salesCurrency: "JPY", miscCost: 0, miscCurrency: "JPY",
+                factoryDate: "2026/04/05", blDate: "2026/04/08", poNo: "PO-260402-B-01", invoiceNo: "",
+                poDate: "2026/04/02", invoiceDate: "", paymentStatus: "未入金", paymentDate: "", comments: "前受け不要"
+            },
+            { 
+                id: 'row_' + (globalIdCounter++), status: "見積中", quoteNo: "", orderDate: "", orderId: "", rep: "大谷", customer: "米国客先C", endUser: "", supplier: "栄レース",
+                category: "レース", itemCode: "R-F-0099", itemSize: "20mm", itemColor: "黒(Black)", itemName: "ストレッチレース", origin: "JP", qty: 1000, unit: "m",
+                costPrice: 15.5, costCurrency: "JPY", markupRate: "手動(ﾏﾆｭｱﾙ)", salesPrice: 22.0, salesCurrency: "USD", miscCost: 0,
+                factoryDate: "", blDate: "", poNo: "", invoiceNo: "", comments: "見積回答待ち"
+            },
+            { 
+                id: 'row_' + (globalIdCounter++), status: "見積中", quoteNo: "", orderDate: "", orderId: "", rep: "松岡", customer: "Sun Fashion America", endUser: "テストユーザー", supplier: "",
+                category: "ボタン", itemCode: "", itemSize: "", itemColor: "", itemName: "", origin: "", qty: 100, unit: "pcs",
+                costPrice: null, costCurrency: "JPY", markupRate: "1.5", salesPrice: null, salesCurrency: "USD", miscCost: 0,
+                factoryDate: "", blDate: "", poNo: "", invoiceNo: "", comments: "ここで品番 LACE-WH や BTN-005 を入力してお試しください！"
+            },
+            { 
+                id: 'row_' + (globalIdCounter++), status: "見積中", quoteNo: "", orderDate: "", orderId: "", rep: "東", customer: "国内客先D", endUser: "", supplier: "",
+                category: "リボン", itemCode: "RIBBON-001", itemSize: "", itemColor: "", itemName: "品番は入っているが価格未入力", origin: "", qty: 500, unit: "Roll",
+                costPrice: null, costCurrency: "JPY", markupRate: "1.3", salesPrice: null, salesCurrency: "JPY", miscCost: 0,
+                factoryDate: "", blDate: "", poNo: "", invoiceNo: "", comments: "仕入単価を手入力して掛率計算とふんわり表示をテスト！"
+            }
+        ];
+
+        // --- AG-Grid 日本語化（ローカライズ）パラメータ ---
+        const AG_GRID_LOCALE_JA = {
+            selectAll: '(すべて選択)',
+            selectAllSearchResults: '(すべての検索結果を選択)',
+            searchOoo: 'Search...', // FloatFilter用 (AG-grid内部制約)
+            blanks: '(空白)',
+            noMatches: '一致なし',
+            filterOoo: 'フィルター...',
+            equals: '等しい',
+            notEqual: '等しくない',
+            empty: 'ひとつを選択',
+            
+            // Menu
+            pinColumn: '列をピン留め',
+            pinLeft: '左にピン留め',
+            pinRight: '右にピン留め',
+            noPin: 'ピン留め解除',
+            valueAggregation: '値の集計',
+            autosizeThiscolumn: 'この列の幅を自動調整',
+            autosizeAllColumns: 'すべての列の幅を自動調整',
+            autoSizeThisColumn: 'この列の幅を自動調整', // 念のため両方のキーを登録
+            autoSizeAllColumns: 'すべての列の幅を自動調整',
+            sortAscending: '昇順で並べ替え',
+            sortDescending: '降順で並べ替え',
+            groupBy: 'この列でグループ化',
+            ungroupBy: 'この列のグループ化解除',
+            resetColumns: '列設定をリセット',
+            expandAll: 'すべて展開',
+            collapseAll: 'すべて折りたたむ',
+            copy: 'コピー',
+            ctrlC: 'Ctrl+C',
+            paste: '貼り付け',
+            ctrlV: 'Ctrl+V',
+            export: 'エクスポート',
+            csvExport: 'CSVエクスポート (+UTF-8)',
+            excelExport: 'Excelエクスポート (.xlsx)'
+        };
+
+        // ==========================================
+        // 4. AG-Grid 初期化と基本イベント設定
+        // ==========================================
+        const gridOptions = {
+            columnDefs: columnDefs,
+            rowData: [], // ログイン時にセットされる
+            getRowId: params => params.data.id, // スクロール位置の維持と高速化に必須
+            localeText: AG_GRID_LOCALE_JA, // 日本語化の適用
+            defaultColDef: {
+                resizable: true,
+                sortable: true,
+                filter: 'agTextColumnFilter', // Enterprise標準の「すべて選択」チェックボックス付きフィルターではなく、シンプルなテキスト検索にする
+                floatingFilter: true, // ヘッダー直下にモダンなフィルター入力バーを表示
+                floatingFilterComponentParams: {
+                    suppressFilterButton: true // 入力ボックス横の重複するアイコンボタンを非表示にしシンプル化
+                }
+            },
+            onCellValueChanged: onCellValueChanged,
+            rowSelection: 'multiple',
+            suppressRowClickSelection: false,
+            enableRangeSelection: true,    // EnterpriseのExcelライクな範囲選択を有効化
+            clipboardDeliminator: '\t',
+            undoRedoCellEditing: false // 独自UNDOスタックに一本化するため標準UNDOは無効にする
+        };
+
+        let gridApi = null;
+
+        // Grid初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            const gridDiv = document.querySelector('#myGrid');
+            try {
+                if (typeof agGrid.createGrid === 'function') {
+                    gridApi = agGrid.createGrid(gridDiv, gridOptions);
+                } else {
+                    new agGrid.Grid(gridDiv, gridOptions);
+                    gridApi = gridOptions.api;
+                }
+            } catch(e) {
+                console.error("Grid error: ", e);
+            }
+
+            // localStorage からログイン情報を復元
+            if (localStorage.getItem('savedUserId')) {
+                currentUserId = localStorage.getItem('savedUserId');
+                currentUserName = localStorage.getItem('savedUserName');
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('headerUserName').innerHTML = `${currentUserName} <span class="text-xs ml-2 cursor-pointer text-blue-300 hover:text-white underline" onclick="logout()">[切替]</span>`;
+                setTimeout(() => applyFilters(), 150); // DOMロード直後に適用
+            }
+        });
+
+        // --- カスタム コピー＆ペースト（Excelからの一括貼り付け） ---
+        document.addEventListener('paste', function(e) {
+            if (!gridApi) return;
+            
+            // セルをダブルクリックして文字入力中（編集中）の場合は、標準のペースト機能に任せて何もしない
+            const editingCells = gridApi.getEditingCells();
+            if (editingCells.length > 0) return;
+
+            // フォーカスされているセル（開始位置）を取得
+            const focusedCell = gridApi.getFocusedCell();
+            if (!focusedCell) return;
+
+            e.preventDefault(); // デフォルトのペーストイベントをブロック
+            e.stopPropagation();
+
+            const clipboardData = e.clipboardData || window.clipboardData;
+            const pastedText = clipboardData.getData('Text');
+            if (!pastedText) return;
+
+            // Excelからコピーされたテキストは、行ごとに改行、列ごとにタブ（\t）で区切られている
+            const rowsData = pastedText.split(/\r\n|\n|\r/);
+            if (rowsData[rowsData.length - 1] === "") rowsData.pop(); // 最後に空行があれば除去
+
+            const displayedColumns = gridApi.getAllDisplayedColumns();
+            const startColIndex = displayedColumns.findIndex(c => c.getColId() === focusedCell.column.getColId());
+            if (startColIndex < 0) return;
+
+            const startRowIndex = focusedCell.rowIndex;
+            
+            // グリッド内の全行ノードを取得
+            const rowNodes = [];
+            gridApi.forEachNode(node => rowNodes.push(node));
+
+            let needRefresh = false;
+
+            for (let i = 0; i < rowsData.length; i++) {
+                const targetRowIndex = startRowIndex + i;
+                
+                // 貼り付け先の行データがない場合、新しく行を追加する（Excelライクな挙動）
+                if (targetRowIndex >= rowNodes.length) {
+                    const newRow = { id: 'row_' + (globalIdCounter++), status: '見積中', rep: currentUserName || "未設定", orderDate: getToday() };
+                    gridApi.applyTransaction({ add: [newRow] });
+                    
+                    // 行を追加したので、ノードリストを再取得
+                    rowNodes.length = 0;
+                    gridApi.forEachNode(node => rowNodes.push(node));
+                }
+
+                const targetNode = rowNodes[targetRowIndex];
+                const cells = rowsData[i].split('\t'); // タブで列ごとに分割
+
+                for (let j = 0; j < cells.length; j++) {
+                    const targetColIndex = startColIndex + j;
+                    if (targetColIndex >= displayedColumns.length) break; // カラム数を超えたらそれ以上は貼らない
+
+                    const col = displayedColumns[targetColIndex];
+                    // 編集可能な列のみペーストを受け付ける
+                    if (col.getColDef().editable) {
+                        const field = col.getColDef().field;
+                        let val = cells[j].trim();
+                        
+                        // 数値カンの場合はカンマを取り除いて数値に変換
+                        if (col.getColDef().type === 'numericColumn' && val !== '') {
+                            const num = parseFloat(val.replace(/,/g, ''));
+                            if (!isNaN(num)) val = num;
+                        }
+                        
+                        targetNode.setDataValue(field, val);
+                        needRefresh = true;
+                    }
+                }
+            }
+
+            if (needRefresh) {
+                // ペースト後に同期
+                window._fullDummyData = getCurrentGridData();
+                console.log("【ペースト完了】 Excelからの範囲データを " + rowsData.length + "行分 展開しました。");
+            }
+        });
+
+        // 任意の箇所だけを自由になぞってコピー・ペーストできるよう、
+        // 以前の独自の行単位コピー/カット処理を削除し、ブラウザとAG Gridのネイティブなテキスト選択機能を有効化しました。
+
+        // ==========================================
+        // 5. ログイン・RBAC・ダッシュボード制御
+        // ==========================================
+        let currentUserId = null;
+        let currentUserName = null;
+        let currentTabFilter = 'all';
+
+        /**
+         * 簡易ログインと権限セット
+         */
+        function performLogin() {
+            const select = document.getElementById('loginUserSelect');
+            currentUserId = select.value;
+            // 「営業: 松岡」などのテキストから名前だけを抽出
+            const roleText = select.options[select.selectedIndex].text;
+            currentUserName = roleText.includes(':') ? roleText.split(':')[1].trim().split(' ')[0] : '役員・管理者';
+            
+            // 次回以降ログイン不要にするためローカルストレージへ保存
+            localStorage.setItem('savedUserId', currentUserId);
+            localStorage.setItem('savedUserName', currentUserName);
+
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('headerUserName').innerHTML = `${currentUserName} <span class="text-xs ml-2 cursor-pointer text-indigo-300 hover:text-indigo-600 underline" onclick="logout()">[切替]</span>`;
+            // Avatar update
+            const encodedName = encodeURIComponent(currentUserName);
+            document.getElementById('avatarIcon').src = `https://ui-avatars.com/api/?name=${encodedName}&background=eff6ff&color=1e40af`;
+
+            applyFilters();
+            
+            // 簡単なウェルカム通知
+            setTimeout(() => {
+                alert(`【認証成功】\n${currentUserName} さんとしてログインしました。\nセキュリティ設定により、閲覧権限のないデータは画面上から保護・ハイドされています。`);
+            }, 100);
+        }
+
+        function logout() {
+            localStorage.removeItem('savedUserId');
+            localStorage.removeItem('savedUserName');
+            location.reload();
+        }
+
+        // タブ切り替え制御
+        function setTabFilter(tabName) {
+            currentTabFilter = tabName;
+            
+            // UI上のタブのアクティブ状態をリセット
+            document.querySelectorAll('[id^="tab_"]').forEach(el => {
+                el.classList.remove('text-indigo-600', 'border-indigo-600');
+                el.classList.add('text-slate-500', 'border-transparent');
+            });
+            // 選択されたタブを強調
+            const activeTab = document.getElementById('tab_' + tabName);
+            activeTab.classList.remove('text-slate-500', 'border-transparent');
+            activeTab.classList.add('text-indigo-600', 'border-indigo-600');
+            
+            if (tabName === 'dashboard') {
+                document.getElementById('gridContainer').classList.add('hidden');
+                document.getElementById('dashboardContainer').classList.remove('hidden');
+                updateDashboardInfo();
+            } else {
+                document.getElementById('gridContainer').classList.remove('hidden');
+                document.getElementById('dashboardContainer').classList.add('hidden');
+                applyFilters();
+            }
+        }
+
+        function getMyData() {
+            if (currentUserId === 'admin') return window._fullDummyData;
+            if (currentUserId === 'matsuoka') return window._fullDummyData.filter(d => d.rep === '松岡');
+            if (currentUserId === 'ohtani') return window._fullDummyData.filter(d => d.rep === '大谷');
+            return window._fullDummyData.filter(d => d.rep === currentUserName); // default fallback
+        }
+
+        function updateDashboardInfo() {
+            let myData = getMyData().filter(d => d.status !== 'キャンセル');
+            
+            // 案件数
+            const orders = myData.filter(d => ['受注済', '先行発注', '出荷済', '請求待ち'].includes(d.status)).length;
+            
+            // 今月の出荷予定（ダミーとして factoryDate が入力されているものの数）
+            const shipping = myData.filter(d => d.factoryDate && d.factoryDate !== "").length;
+            
+            // 今月の粗利益（仮計算）
+            let totalProfit = 0;
+            myData.forEach(d => {
+                if (d.status !== '見積中' && d.salesPrice && d.qty && d.costPrice) {
+                     const sJPY = d.salesCurrency === 'JPY' ? d.salesPrice : d.salesPrice * 143.5;
+                     const cJPY = d.costCurrency === 'JPY' ? d.costPrice : d.costPrice * 144.5;
+                     const gp = (sJPY * d.qty) - (cJPY * d.qty);
+                     totalProfit += gp;
+                }
+            });
+
+            document.getElementById('dashOrders').innerText = orders;
+            document.getElementById('dashShipping').innerText = shipping;
+            document.getElementById('dashProfit').innerText = "¥" + Math.floor(totalProfit).toLocaleString();
+        }
+
+        // 権限設定(RBAC)とタスクタブの「二重フィルタリング」を適用
+        function applyFilters() {
+            let data = getMyData();
+
+            // 2. タスク起点タブフィルター
+            if (currentTabFilter === 'alert_po') {
+                data = data.filter(d => d.status === '受注済' && !d.poNo && d.status !== 'キャンセル');
+            } else if (currentTabFilter === 'pending_invoice') {
+                data = data.filter(d => (d.status === '請求待ち' || d.paymentStatus === '未入金') && d.status !== 'キャンセル');
+            } else if (currentTabFilter === 'archived') {
+                data = data.filter(d => d.status === 'キャンセル');
+            } else {
+                // 'all' タブ等の場合は、キャンセル（論理削除）されたもの以外を全て表示
+                data = data.filter(d => d.status !== 'キャンセル');
+            }
+
+            if(gridApi && gridApi.setGridOption) {
+                gridApi.setGridOption('rowData', data);
+            } else if (gridApi) {
+                gridApi.setRowData(data);
+            }
+
+            // タブ切り替え・ログイン等の初期状態を保存し、UNDOスタックをリセット
+            setTimeout(() => {
+                lastGridDataString = JSON.stringify(getCurrentGridData());
+                customUndoStack = [];
+                customRedoStack = [];
+            }, 100);
+        }
+
+        // ==========================================
+        // 6. 業務アクション群 (新規・削除・改版・分割・キット化)
+        // ==========================================
+        
+        /**
+         * 行の論理削除（キャンセル/アーカイブ状態への移行）
+         */
+        function archiveSelected() {
+            const selectedNodes = gridApi.getSelectedNodes();
+            if (selectedNodes.length === 0) {
+                alert("削除（アーカイブ）する行をチェックボックス等で選択してください。");
+                return;
+            }
+            if(!confirm("選択した行を「キャンセル(アーカイブ)」状態に変更し、一覧から隠しますか？\n（データ自体は保護され、管理者やアーカイブタブから確認・復旧が可能です）")) return;
+
+            hasUnsavedChanges = true;
+            document.querySelector('.fa-save').classList.add('text-red-600');
+            document.querySelector('.fa-save').classList.remove('text-blue-600');
+
+            selectedNodes.forEach(node => {
+                // 背後のデータソースのステータスを書き換える
+                node.data.status = 'キャンセル';
+            });
+            
+            // フィルタ再適用（画面からスッと消える効果）
+            applyFilters();
+            queueCommitState();
+        }
+
+        /**
+         * 書類発行済みの行を「ロック解除」して編集可能にし、改版フラグを立てる
+         * 改版前の状態を `_originalState` としてスナップショット保存する
+         */
+        function unlockRowForRevision() {
+            const selectedNodes = gridApi.getSelectedNodes();
+            if (selectedNodes.length === 0) {
+                alert("ロック解除（改版）する行をチェックボックス等で選択してください。");
+                return;
+            }
+            
+            let unlockedCount = 0;
+            // 単純な日付文字列生成用関数（デモ用）
+            const getShortDate = () => { let d = new Date(); return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`; };
+            
+            selectedNodes.forEach(node => {
+                if (node.data.locked) {
+                    node.data.locked = false;
+                    node.data.revision = (node.data.revision || 0) + 1;
+                    const prevInvoiceNo = node.data.invoiceNo || "不明";
+                    // 以前の状態をディープコピーして保存（監査ログ取得用）
+                    node.data._originalState = JSON.parse(JSON.stringify(node.data));
+                    node.data.comments = `[SYS] ${getShortDate()} 改版ロック解除 (${prevInvoiceNo}) ` + (node.data.comments || "");
+                    unlockedCount++;
+                }
+            });
+
+            if (unlockedCount > 0) {
+                gridApi.applyTransaction({ update: selectedNodes.map(n => n.data) });
+                hasUnsavedChanges = true;
+                document.querySelector('.fa-save').classList.add('text-red-600');
+                document.querySelector('.fa-save').classList.remove('text-blue-600');
+                // 確定アクションなのでUndo履歴をリセット
+                customUndoStack = [];
+                customRedoStack = [];
+                lastGridDataString = JSON.stringify(getCurrentGridData());
+                alert(`【ロック解除】\n選択された ${unlockedCount} 件のデータを編集可能にし、改版準備を行いました。\n内容を修正後、再度書類出力を行ってください。`);
+            } else {
+                alert("選択された行はすでにロック解除されているか、ロックされていません。");
+            }
+        }
+
+        /**
+         * 一部引当や納品先変更のために、現在の行から数量を切り出して新しい行（分割行）を作る
+         * @desc リンクID（SPL-xxxx）を共有し、カンマ区切りで蓄積する
+         */
+        function splitRow() {
+            const selectedNodes = gridApi.getSelectedNodes();
+            if (selectedNodes.length !== 1) {
+                alert("分割したい行を【1行だけ】チェックボックスで選択してください。");
+                return;
+            }
+            const node = selectedNodes[0];
+            const data = node.data;
+            
+            if (data.locked) {
+                alert("書類発行済み（ロック状態）の行はそのまま分割できません。\n不正な書類番号の拡散を防ぐため、先に「ロック解除(改版)」を行ってから分割してください。");
+                return;
+            }
+            const currentQty = parseInt(data.qty) || 0;
+            
+            if (currentQty <= 1) {
+                alert("数量が未入力、または1以下のため分割できません。");
+                return;
+            }
+
+            const splitQtyStr = prompt(`現在の数量は ${currentQty} です。\n新しく切り出す数量を入力してください：`, "1");
+            if (!splitQtyStr) return; // キャンセル
+
+            const splitQty = parseInt(splitQtyStr);
+            if (isNaN(splitQty) || splitQty <= 0 || splitQty >= currentQty) {
+                alert("無効な数量です。分割元の数量より小さい正の整数を入力してください。");
+                return;
+            }
+
+            // 元の行の数量を減らす
+            data.qty = currentQty - splitQty;
+
+            // リンクIDの付与（分割グループ）
+            let spId = `SPL-${Math.floor(1000 + Math.random()*9000)}`;
+            if (data.linkId) {
+                data.linkId = data.linkId + ", " + spId;
+            } else {
+                data.linkId = spId;
+            }
+
+            // 新しい行を作る
+            let newRowData = { ...data };
+            newRowData.id = 'row_' + (globalIdCounter++);
+            newRowData.qty = splitQty;
+            newRowData.comments = `[SYS] ${spId}により分割 ` + (data.comments || "");
+
+            // トランザクションで元行の更新と新規行の追加を同時実行
+            gridApi.applyTransaction({ 
+                update: [data],
+                add: [newRowData],
+                addIndex: node.rowIndex + 1 // 元の行のすぐ下に追加
+            });
+
+            hasUnsavedChanges = true;
+            document.querySelector('.fa-save').classList.add('text-red-600');
+            queueCommitState();
+        }
+
+        /**
+         * 複数行の材料を選択し、それらを消費して新しい「完成品」の行（加工品・キット組み）を自動生成する
+         * @desc 全材料の費用が自動合算され、PRC-xxxx リンクで関連付けられる
+         */
+        function kitRows() {
+            const selectedNodes = gridApi.getSelectedNodes();
+            if (selectedNodes.length < 1) {
+                alert("キット化・加工する材料の行を選択してください。");
+                return;
+            }
+
+            let totalCostJpy = 0;
+            // 選択された材料の原価を計算
+            const baseRateTTS = 145; // 仮
+            const appliedTTS = baseRateTTS - 0.5;
+
+            for(let node of selectedNodes) {
+               if (node.data.locked) {
+                   alert("すでに書類発行済みの行が選択されています。解除してから実行してください。");
+                   return;
+               }
+               let cCost = parseFloat(node.data.costPrice) || 0;
+               let q = parseFloat(node.data.qty) || 0;
+               let itemCostJPY = node.data.costCurrency === 'JPY' ? cCost : cCost * appliedTTS;
+               totalCostJpy += (itemCostJPY * q);
+            }
+
+            const newItemCode = prompt(`材料 ${selectedNodes.length} 行を消費して新しいキット(加工品)を作成します。\n生成される【新しい品番】を入力してください：`, "KIT-001");
+            if (!newItemCode) return;
+            
+            const newQtyStr = prompt("出来上がりの数量を入力してください：", "1");
+            const newQty = parseInt(newQtyStr);
+            if(isNaN(newQty) || newQty <= 0) return;
+
+            const extraCostStr = prompt("加工賃など、材料費以外に追加でかかる費用（日本円 総額）があれば入力してください：", "0");
+            const extraCost = parseFloat(extraCostStr) || 0;
+
+            const prcId = `PRC-${Math.floor(1000 + Math.random()*9000)}`;
+
+            // 材料行の消費処理（ステータス変更・ロック・リンク付与）
+            let updatedNodes = [];
+            selectedNodes.forEach(node => {
+                node.data.status = '加工消費';
+                node.data.locked = true;
+                if (node.data.linkId) {
+                    node.data.linkId = node.data.linkId + ", " + prcId;
+                } else {
+                    node.data.linkId = prcId;
+                }
+                node.data.comments = `[SYS] ${prcId}へ投入 ` + (node.data.comments || "");
+                updatedNodes.push(node.data);
+            });
+
+            // 新しい行（完成品）の生成
+            const finalUnitCost = (totalCostJpy + extraCost) / newQty;
+            const newRow = {
+                id: 'row_' + (globalIdCounter++),
+                status: '発注済',
+                quoteNo: "-",
+                orderDate: "-",
+                orderId: "-",
+                rep: currentUserId !== 'admin' ? currentUserName : "設定",
+                customer: "-",
+                category: "キット/加工品",
+                itemCode: newItemCode,
+                itemName: "加工セット品",
+                qty: newQty,
+                unit: "SET",
+                costPrice: Math.ceil(finalUnitCost * 100) / 100,
+                costCurrency: "JPY",
+                salesPrice: null,
+                salesCurrency: "JPY",
+                linkId: prcId,
+                poDate: getToday(),
+                comments: `[SYS] 材料費 ${Math.floor(totalCostJpy)}円 + 加工賃 ${extraCost}円 = 仕入原価`
+            };
+
+            gridApi.applyTransaction({ 
+                update: updatedNodes,
+                add: [newRow]
+            });
+
+            // 確定アクションなのでスタックリセット
+            customUndoStack = [];
+            customRedoStack = [];
+            lastGridDataString = JSON.stringify(getCurrentGridData());
+
+            hasUnsavedChanges = true;
+            document.querySelector('.fa-save').classList.add('text-red-600');
+            alert(`【キット化完了】\n材料行を加工消費扱いにし、新品番 ${newItemCode} を生成しました。\n(リンクID: ${prcId})`);
+        }
+
+        // ボタンの挙動関数
+        function addRow(type) {
+            hasUnsavedChanges = true;
+            const repParam = currentUserId !== 'admin' ? currentUserName : "未設定";
+            let newRow;
+            
+            if (type === 'quote') {
+                // 見積もりから入るケース（受注日や得意先は空白ベース）
+                newRow = { id: 'row_' + (globalIdCounter++), status: '見積中', quoteNo: "", orderDate: "", rep: repParam };
+            } else if (type === 'po') {
+                // 先行手配（在庫補填用）のケース：得意先・受注関係は空で、ステータスは発注済 or 手配中
+                newRow = { id: 'row_' + (globalIdCounter++), status: '先行発注', quoteNo: "-", orderDate: "-", orderId: "在庫補填(未引当)", rep: repParam, customer: "-", poDate: getToday() };
+            } else {
+                // 新規受注（いきなり受注が入ったケース）
+                newRow = { id: 'row_' + (globalIdCounter++), status: '受注済', quoteNo: "-", orderDate: getToday(), rep: repParam };
+            }
+            gridApi.applyTransaction({ add: [newRow] });
+            queueCommitState();
+        }
+
+        function saveData() {
+            hasUnsavedChanges = false; // 保存完了でフラグをクリア
+            document.querySelector('.fa-save').classList.remove('text-red-600');
+            document.querySelector('.fa-save').classList.add('text-blue-600');
+            alert("データを保存しました。（UIモックアップのため実際のDBには保存されません）\nこれで書類一括生成が可能になりました。");
+        }
+
+        // ==========================================
+        // 7. ドキュメント生成 (Invoiceロック・その他の雛形)
+        // ==========================================
+        
+        function assertSaved() {
+            if (hasUnsavedChanges) {
+                alert("⚠️ 未保存の変更があります！\n最新のデータを書類に反映させるため、先に「保存」ボタンを押してください。");
+                return false;
+            }
+            return true;
+        }
+
+        // 個別の書類生成関数にも未保存チェックを追加
+        function generateInvoice() {
+            if (!assertSaved()) return; 
+
+            // 範囲選択されたセル情報から、対象行を推定取得する（Excel的なドラッグ範囲選択対応）
+            const selectedRanges = gridApi.getCellRanges();
+            let selectedNodeIndexes = new Set();
+            
+            if (selectedRanges && selectedRanges.length > 0) {
+                selectedRanges.forEach(range => {
+                    let start = range.startRow.rowIndex;
+                    let end = range.endRow.rowIndex;
+                    for (let i = Math.min(start, end); i <= Math.max(start, end); i++) {
+                        selectedNodeIndexes.add(i);
+                    }
+                });
+            } else {
+                // 行クリックで直接選択されている場合
+                gridApi.getSelectedNodes().forEach(node => {
+                    selectedNodeIndexes.add(node.rowIndex);
+                });
+            }
+
+            if (selectedNodeIndexes.size === 0) {
+                alert("出力する行をセル上でドラッグしてなぞって選択（またはチェックボックスで選択）してください。");
+                return;
+            }
+
+            let nodesToUpdate = [];
+            // 単純な日付文字列生成用関数（デモ用）
+            const getShortDate = () => { let d = new Date(); return `${d.getFullYear().toString().substr(-2)}${(d.getMonth()+1).toString().padStart(2,'0')}${d.getDate().toString().padStart(2,'0')}`; };
+            let todayStr = getShortDate();
+            
+            gridApi.forEachNode(node => {
+                if (selectedNodeIndexes.has(node.rowIndex)) {
+                    node.data.locked = true;
+                    // 番号の生成と枝番管理
+                    let baseNo = `INV-${todayStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+                    if (node.data.invoiceNo && node.data.invoiceNo.startsWith('INV-')) {
+                         baseNo = node.data.invoiceNo.split('-Rev')[0]; // 既存のベースを維持
+                    }
+                    if (node.data.revision && node.data.revision > 0) {
+                         node.data.invoiceNo = `${baseNo}-Rev${node.data.revision}`;
+                    } else {
+                         node.data.invoiceNo = baseNo;
+                    }
+                    
+                    // 日付を入れる用のヘルパー
+                    const getFullDate = () => { let d = new Date(); return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`; };
+                    node.data.invoiceDate = getFullDate();
+                    nodesToUpdate.push(node.data);
+                }
+            });
+            
+            if(nodesToUpdate.length > 0) {
+                gridApi.applyTransaction({ update: nodesToUpdate });
+                hasUnsavedChanges = true;
+                document.querySelector('.fa-save').classList.add('text-red-600');
+                document.querySelector('.fa-save').classList.remove('text-blue-600');
+                queueCommitState();
+            }
+
+            alert(`【本Invoice出力完了】\n選択された ${selectedNodeIndexes.size} 件のデータを元に、書類を自動生成し行を編集不可にロックしました！`);
+        }
+
+        // 他の書類ボタン用のダミー関数
+        function generateEstimate() {
+            if (!assertSaved()) return;
+            alert("見積書 / Sales Note を生成し、未採番のデータに「見積番号」を自動で割り振りました！");
+        }
+
+        // HTMLのボタントリガーに追加するためにDOMContentLoaded外でイベントセット
+        document.querySelectorAll('button').forEach(btn => {
+            if(btn.innerText.includes('見積書')) btn.onclick = generateEstimate;
+            if(btn.innerText.includes('発注書')) btn.onclick = () => { if(assertSaved()) alert("発注書を作成しました！"); };
+            if(btn.innerText.includes('Proforma')) btn.onclick = () => { if(assertSaved()) alert("Proforma Invoiceを作成しました！"); };
+            if(btn.innerText.includes('Packing')) btn.onclick = () => { if(assertSaved()) alert("Packing Listを作成しました！"); };
+        });
+
+        function getToday() {
+            const d = new Date();
+            return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+        }
+    </script>
+</body>
+</html>
