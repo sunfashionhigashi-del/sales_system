@@ -1,4 +1,3 @@
-import React from 'react'
 import { useState, useEffect, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community'
@@ -20,25 +19,55 @@ const itemMasterDB: any = {
     "R-F-0099": { itemName: "ストレッチレース", category: "レース", costPrice: 15.5, salesPrice: 22.0 }
 };
 
-// ステータスバッジ — モジュールレベルのReact関数コンポーネント（AG Grid React必須形式）
+// ステータスバッジ — モジュールのクリーンなテキスト＋ドットデザイン
 const StatusBadgeRenderer = (params: any) => {
   if (!params.value) return null;
-  const styleMap: Record<string, React.CSSProperties> = {
-    '見積中':   { background: '#dbeafe', color: '#1d4ed8', border: '1px solid #bfdbfe' },
-    '発注待':   { background: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca', fontWeight: 700 },
-    '発注済':   { background: '#d1fae5', color: '#065f46', border: '1px solid #a7f3d0' },
-    '先行発注': { background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' },
-    '加工中':   { background: '#e0e7ff', color: '#3730a3', border: '1px solid #c7d2fe', fontWeight: 700 },
-    '材料充当': { background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' },
-    '請求済':   { background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' },
-    'キャンセル': { background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca' },
+  const styleMap: Record<string, { color: string, indicator: string }> = {
+    '見積中':   { color: '#2563eb', indicator: '#93c5fd' }, 
+    '発注待':   { color: '#dc2626', indicator: '#fca5a5' }, 
+    '発注済':   { color: '#059669', indicator: '#6ee7b7' }, 
+    '先行発注': { color: '#d97706', indicator: '#fcd34d' }, 
+    '加工中':   { color: '#4f46e5', indicator: '#a5b4fc' }, 
+    '材料充当': { color: '#64748b', indicator: '#cbd5e1' }, 
+    '請求済':   { color: '#374151', indicator: '#d1d5db' }, 
+    'キャンセル': { color: '#ef4444', indicator: '#f87171' }, 
   };
-  const s = styleMap[params.value] || { background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb' };
+  const s = styleMap[params.value] || { color: '#374151', indicator: '#e5e7eb' };
   return (
-    <span style={{ ...s, padding: '2px 8px', borderRadius: '9999px', fontSize: '11px', whiteSpace: 'nowrap', display: 'inline-block', marginTop: '3px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', height: '100%', fontWeight: 700, color: s.color, whiteSpace: 'nowrap' }}>
+      <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: s.indicator, marginRight: '6px' }}></span>
       {params.value}
-    </span>
+    </div>
   );
+};
+
+// マスタ価格のふんわりサジェスト表示 Renderer
+const PriceCellRenderer = (params: any) => {
+    let valStr = '';
+    if (params.value !== null && params.value !== undefined && params.value !== '') {
+        const n = parseFloat(params.value);
+        valStr = isNaN(n) ? params.value : n.toLocaleString('ja-JP', { maximumFractionDigits: 4 });
+    }
+    
+    const isCost = params.colDef?.field === 'cost_price';
+    const master = params.data?.item_code ? itemMasterDB[params.data.item_code] : null;
+    let suggestion = null;
+    
+    if (master) {
+        const mPrice = isCost ? master.costPrice : master.salesPrice;
+        const currentVal = parseFloat(params.value);
+        // 現在値が空、またはマスタと異なる場合にふんわり提案を出す
+        if (isNaN(currentVal) || currentVal !== mPrice) {
+            suggestion = <div style={{ fontSize: '10px', color: '#9ca3af', lineHeight: '1', marginTop: '2px', fontStyle: 'italic' }}>[ﾏｽﾀ: {mPrice}]</div>;
+        }
+    }
+    
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingTop: suggestion ? '4px' : '0px', justifyContent: suggestion ? 'flex-start' : 'center' }}>
+            <div style={{ lineHeight: '1.2' }}>{valStr}</div>
+            {suggestion}
+        </div>
+    );
 };
 
 const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
@@ -102,14 +131,15 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
           return;
       }
 
-      // リンクIDの付与（分割グループ）
-      let spId = `SPL-${Math.floor(1000 + Math.random()*9000)}`;
-      let newLinkId = data.link_id ? data.link_id + ", " + spId : spId;
+      // リンクIDの付与（分割元グループ継承）
+      let splitFamilyId = (data.link_id && data.link_id.includes('SPL-')) 
+          ? data.link_id 
+          : `SPL-${Math.floor(1000 + Math.random()*9000)}`;
       
       const updatedOriginal = {
           ...data,
           qty: currentQty - splitQty,
-          link_id: newLinkId,
+          link_id: splitFamilyId,
           updated_at: new Date().toISOString()
       };
 
@@ -117,8 +147,8 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
           ...data,
           id: crypto.randomUUID(),
           qty: splitQty,
-          link_id: newLinkId,
-          comments: `[SYS] ${spId}により分割 ` + (data.comments || ""),
+          link_id: splitFamilyId,
+          comments: `[SYS] 分割 (元:${currentQty}) ` + (data.comments || ""),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           locked: false
@@ -756,22 +786,25 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
     { 
        headerName: "単価 / 採算",
        children: [
-           { headerName: "仕入",  field: "cost_price", editable: true, width: 80, type: 'numericColumn',
-             headerTooltip: "仕入単価（仕入通貨ベース）。過去実績と乖離がある場合、黄色で警告",
-             valueFormatter: numFmt,
+           { headerName: "仕入",  field: "cost_price", editable: true, width: 90, type: 'numericColumn',
+             headerTooltip: "仕入単価（仕入通貨ベース）。品番からマスタの価格を提案。過去実績と乖離がある場合、黄色で警告",
+             cellRenderer: PriceCellRenderer,
              cellStyle: getPriceWarningStyle },
            { headerName: "通貨", field: "cost_currency", editable: true, width: 65,
              headerTooltip: "仕入通貨（JPY / USD / EUR / CNY）",
              cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] } },
-           { headerName: "採算為替", field: "internal_rate", editable: true, width: 80, type: 'numericColumn',
-             headerTooltip: "社内採算為替レート（見積・値付け時の基準レート。BL確定前の粗利計算に使用）",
-             valueFormatter: numFmt },
+           { headerName: "採算為替", field: "internal_rate", 
+             editable: (p: any) => p.data.cost_currency === 'JPY' && p.data.sales_currency !== 'JPY', 
+             width: 80, type: 'numericColumn',
+             headerTooltip: "社内採算為替レート（円仕入・外貨販売の粗利計算に使用。円取引では自動ロック）",
+             valueFormatter: numFmt,
+             cellStyle: (p: any) => p.data.cost_currency === 'JPY' && p.data.sales_currency !== 'JPY' ? {} : { backgroundColor: '#f1f5f9', color: '#94a3b8' } },
            { headerName: "掛率", field: "markup_rate", editable: true, width: 72,
              headerTooltip: "販売掛率（例: 1.5 = 仕入の1.5倍。手動入力時は自動で〈手動〉に切替）",
              cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['1.2', '1.3', '1.5', '2.0', '手動(ﾏﾆｭｱﾙ)', '現法自動'] } },
-           { headerName: "販売", field: "sales_price", editable: true, width: 80, type: 'numericColumn',
-             headerTooltip: "販売単価（販売通貨ベース）。掛率から自動計算。手動で上書きした場合は掛率が〈手動〉に変わる",
-             valueFormatter: numFmt,
+           { headerName: "販売", field: "sales_price", editable: true, width: 90, type: 'numericColumn',
+             headerTooltip: "販売単価（販売通貨ベース）。掛率から自動計算、または強制上書き可能",
+             cellRenderer: PriceCellRenderer,
              cellStyle: getPriceWarningStyle },
            { headerName: "通貨", field: "sales_currency", editable: true, width: 65,
              headerTooltip: "販売通貨（JPY / USD / EUR / CNY）",
@@ -786,16 +819,24 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
            { headerName: "経費通貨", field: "misc_currency", editable: true, width: 72,
              headerTooltip: "諸経費の通貨",
              cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] } },
-           { headerName: "実勢為替", field: "exchange_rate", editable: true, width: 80, type: 'numericColumn',
-             headerTooltip: "BL確定時の実勢為替レート（BL DATEと共に入力すると粗利計算が確定値に自動切替）",
+           { headerName: "実勢為替", field: "exchange_rate", 
+             editable: (p: any) => p.data.cost_currency !== 'JPY' || p.data.sales_currency !== 'JPY', 
+             width: 80, type: 'numericColumn',
+             headerTooltip: "BL確定時の実勢為替レート（外貨絡みの取引時のみ有効。BL DATEと共に入力すると粗利が確定値に切替）",
              valueFormatter: numFmt,
-             cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b'} },
+             cellStyle: (p: any) => p.data.cost_currency !== 'JPY' || p.data.sales_currency !== 'JPY' ? { backgroundColor: '#eff6ff', color: '#1e3a8a'} : { backgroundColor: '#f1f5f9', color: '#94a3b8' } },
            { headerName: "粗利(円)", field: "gross_profit", editable: false, width: 95, type: 'numericColumn',
-             headerTooltip: "粗利（円換算・自動計算）。BL DATE未入力時は採算為替、入力後は実勢為替で計算",
+             headerTooltip: "粗利（円換算・自動計算）。純国内取引(JPY)時は為替無視。外貨時はBL前=採算為替、BL後=実勢で換算",
              valueGetter: (params: any) => {
                  if (!params.data.sales_price || !params.data.qty || !params.data.cost_price) return null;
+                 const isDomestic = params.data.cost_currency === 'JPY' && params.data.sales_currency === 'JPY';
                  let isFinalized = Boolean(params.data.bl_date && params.data.exchange_rate);
-                 let baseRate = isFinalized ? params.data.exchange_rate : (params.data.internal_rate || 145.0);
+                 
+                 let baseRate = 1.0;
+                 if (!isDomestic) {
+                     baseRate = isFinalized ? params.data.exchange_rate : (params.data.internal_rate || 145.0);
+                 }
+                 
                  const qty = params.data.qty;
                  let salesJPY = params.data.sales_currency === 'JPY' ? params.data.sales_price : params.data.sales_price * baseRate;
                  let costJPY = params.data.cost_currency === 'JPY' ? params.data.cost_price : params.data.cost_price * baseRate;
@@ -840,8 +881,8 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
     sortable: true,
     filter: true,
     floatingFilter: true,
-    suppressHeaderMenuButton: true, // 「・・・」メニューボタンを全列で非表示にしてフィルター行に一本化
-    tooltipShowDelay: 400,          // ツールチップ表示を400ms後に
+    suppressHeaderMenuButton: true, // 「・・・」メニューボタンを非表示にしてフィルター行に一本化
+    tooltipShowDelay: 0,            // マウスを乗せた瞬間にツールチップ（ふんわり解説）を表示          
   }), [])
 
   // Phase 1: 高度なセルチェンジフック
@@ -857,7 +898,11 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
          if (masterData) {
              params.node.setDataValue('item_name', masterData.itemName);
              params.node.setDataValue('category', masterData.category);
-             // リフレッシュによりWarningスタイルを即時評価
+             // 品番入力時、仕入/販売価格が未設定ならマスタ価格で初期補完
+             if (!rowData.cost_price) params.node.setDataValue('cost_price', masterData.costPrice);
+             if (!rowData.sales_price) params.node.setDataValue('sales_price', masterData.salesPrice);
+             
+             // リフレッシュによりWarningスタイルやサジェスト表示を即時評価
              if (params.api) {
                  params.api.refreshCells({ rowNodes: [params.node], columns: ['cost_price', 'sales_price'] });
              }

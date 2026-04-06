@@ -40,3 +40,22 @@
 .price-warning {
     background-color: #fef08a !important;
 }
+
+/* Beautiful modern tooltips for AG-Grid headers/cells */
+.ag-tooltip {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+    border: 1px solid #334155 !important;
+    border-radius: 6px !important;
+    padding: 8px 14px !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    backdrop-filter: blur(4px) !important;
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    max-width: 300px;
+    line-height: 1.5;
+}
+.ag-tooltip-hiding {
+    opacity: 0 !important;
+}
