@@ -1,4 +1,7 @@
 node_modules/
-.env*
+**/node_modules/
+prototype-app/node_modules/
+prototype-app/dist/
 .DS_Store
+.env*
 !prototype-app/.env.local

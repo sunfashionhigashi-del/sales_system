@@ -16,7 +16,11 @@ interface GridAreaProps {
 const itemMasterDB: any = {
     "MW-0806T": { itemName: "モビロンテープ", category: "PUテープ", costPrice: 120.0, salesPrice: 200.0 },
     "RIBBON-001": { itemName: "サテンリボン", category: "リボン", costPrice: 50.0, salesPrice: 80.0 },
-    "R-F-0099": { itemName: "ストレッチレース", category: "レース", costPrice: 15.5, salesPrice: 22.0 }
+    "R-F-0099": { itemName: "ストレッチレース", category: "レース", costPrice: 15.5, salesPrice: 22.0 },
+    "BT-RESIN-15": { itemName: "Resin Button 15mm", category: "ボタン", costPrice: 8.5, salesPrice: 15.0 },
+    "ZIP-MET-10": { itemName: "Metal Zipper 10cm", category: "パーツ", costPrice: 45.0, salesPrice: 90.0 },
+    "LACE-NY-05": { itemName: "Nylon Lace 5cm", category: "レース", costPrice: 22.0, salesPrice: 38.0 },
+    "TAPE-COT-20": { itemName: "Cotton Tape 20mm", category: "PUテープ", costPrice: 14.0, salesPrice: 28.0 }
 };
 
 // ステータスバッジ — モジュールのクリーンなテキスト＋ドットデザイン
@@ -58,7 +62,7 @@ const PriceCellRenderer = (params: any) => {
         const currentVal = parseFloat(params.value);
         // 現在値が空、またはマスタと異なる場合にふんわり提案を出す
         if (isNaN(currentVal) || currentVal !== mPrice) {
-            suggestion = <div style={{ fontSize: '10px', color: '#9ca3af', lineHeight: '1', marginTop: '2px', fontStyle: 'italic' }}>[ﾏｽﾀ: {mPrice}]</div>;
+            suggestion = <div style={{ fontSize: '10px', color: '#9ca3af', lineHeight: '1', marginTop: '2px', fontStyle: 'italic' }}>[前回: {mPrice}]</div>;
         }
     }
     
@@ -68,6 +72,53 @@ const PriceCellRenderer = (params: any) => {
             {suggestion}
         </div>
     );
+};
+
+const AG_GRID_LOCALE_JP = {
+    // Columns Tool Panel
+    columns: '列',
+    filters: 'フィルター',
+    selectMode: '選択モード',
+    chooseColumns: '列の選択',
+    columnChooser: '列の選択',
+    
+    // Sort & Pin Configuration Menu
+    pinColumn: '列を固定する',
+    pinLeft: '左に固定',
+    pinRight: '右に固定',
+    noPin: '固定解除',
+    autosizeThiscolumn: 'この列の幅を自動調整',
+    autosizeAllColumns: 'すべての列の幅を自動調整',
+    autoSizeThisColumn: 'この列の幅を自動調整',
+    autoSizeAllColumns: 'すべての列の幅を自動調整',
+    groupBy: 'グループ化',
+    ungroupBy: 'グループ化解除',
+    resetColumns: '列をリセット',
+    expandAll: 'すべて展開',
+    collapseAll: 'すべて折りたたむ',
+    toolPanel: 'ツールパネル',
+    sortAscending: '昇順に並べ替え',
+    sortDescending: '降順に並べ替え',
+    sortUnSort: '並べ替えを解除',
+    
+    // Filters Menu
+    filterOoo: 'フィルター...',
+    equals: '等しい',
+    notEqual: '等しくない',
+    empty: '空白を選ぶ',
+    blank: '空白',
+    notBlank: '空白以外',
+    contains: '含む',
+    notContains: '含まない',
+    startsWith: 'で始まる',
+    endsWith: 'で終わる',
+    searchOoo: '検索...',
+    selectAll: '(すべて選択)',
+    selectAllSearchResults: '(全検索結果を選択)',
+    
+    // Grid General
+    noRowsToShow: '表示するデータがありません',
+    enabled: '有効',
 };
 
 const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
@@ -175,6 +226,10 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
             po_date: null,
             invoice_date: null,
             order_date: null,
+            payment_date: null,
+            quote_remarks: null,
+            po_remarks: null,
+            invoice_remarks: null,
             revision: 0,
             last_qt_snapshot: null,
             last_po_snapshot: null,
@@ -726,163 +781,235 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
     return n.toLocaleString('ja-JP', { maximumFractionDigits: 4 });
   };
 
-  const [columnDefs] = useState<any>([
-    { 
-       headerName: "基本情報", 
-       children: [
-           { headerName: "", field: "selected", checkboxSelection: true, headerCheckboxSelection: true, width: 40, pinned: 'left', suppressHeaderMenuButton: true, filter: false, floatingFilter: false, sortable: false },
-           { headerName: "ｽﾃｰﾀｽ", field: "status", editable: true, width: 88, pinned: 'left',
-             headerTooltip: "取引ステータス（見積中 / 発注待 / 発注済 / 先行発注 / 加工中 / 材料充当 / 請求済 / キャンセル）",
-             cellRenderer: StatusBadgeRenderer,
-             cellEditor: 'agSelectCellEditor', 
-             cellEditorParams: { values: ['見積中', '発注待', '発注済', '先行発注', '加工中', '材料充当', '請求済', 'キャンセル'] },
-             valueSetter: (params: any) => {
-                 const allowed = ['見積中', '発注待', '発注済', '先行発注', '加工中', '材料充当', '請求済', 'キャンセル']
-                 if (allowed.includes(params.newValue)) {
-                     params.data.status = params.newValue
-                     return true
+  const columnDefs = useMemo(() => {
+    const rawCols = [
+        { 
+           headerName: "1. 管理・取引先", 
+           children: [
+               { headerName: "", field: "selected", checkboxSelection: true, headerCheckboxSelection: true, width: 40, pinned: 'left', suppressHeaderMenuButton: true, filter: false, floatingFilter: false, sortable: false },
+               { headerName: "ｽﾃｰﾀｽ", field: "status", editable: true, width: 88, pinned: 'left',
+                 headerTooltip: "取引ステータス（見積中 / 発注待 / 発注済 / 先行発注 / 加工中 / 材料充当 / 請求済 / キャンセル）",
+                 cellRenderer: StatusBadgeRenderer,
+                 cellEditor: 'agSelectCellEditor', 
+                 cellEditorParams: { values: ['見積中', '発注待', '発注済', '先行発注', '加工中', '材料充当', '請求済', 'キャンセル'] },
+                 valueSetter: (params: any) => {
+                     const allowed = ['見積中', '発注待', '発注済', '先行発注', '加工中', '材料充当', '請求済', 'キャンセル']
+                     if (allowed.includes(params.newValue)) {
+                         params.data.status = params.newValue
+                         return true
+                     }
+                     return false 
                  }
-                 return false 
-             }
-           },
-           { headerName: "見積番 ※", field: "quote_no", editable: false, width: 105, pinned: 'left',
-             headerTooltip: "※ システム自動採番（見積書生成時に付与）",
-             cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
-           { headerName: "受注日", field: "order_date", editable: true, width: 95, pinned: 'left',
-             headerTooltip: "受注登録ボタン押下時に自動打刻される受注確定日" },
-           { headerName: "受注番号", field: "order_id", editable: true, width: 110, pinned: 'left',
-             headerTooltip: "顧客から通知された発注番号（PO番号等）を手入力" },
-           { headerName: "担当", field: "rep", editable: false, width: 60,
-             headerTooltip: "担当営業（ログインユーザーから自動設定）" },
-       ]
-    },
-    { 
-       headerName: "取引先", 
-       children: [
-           { headerName: "得意先", field: "customer", editable: true, width: 130,
-             headerTooltip: "請求先の顧客名（直接先）" },
-           { headerName: "ユーザー", field: "end_user", editable: true, width: 120,
-             headerTooltip: "エンドユーザー（最終消費者・商品ブランド等）" },
-           { headerName: "仕入先", field: "supplier", editable: true, width: 120,
-             headerTooltip: "仕入先（製造元・卸元）" },
-       ]
-    },
-    { 
-       headerName: "商品情報", 
-       children: [
-           { headerName: "カテゴリ", field: "category", editable: true, width: 100,
-             headerTooltip: "商品カテゴリ（PUテープ / リボン / レース / ボタン / パーツ / キット/加工品）",
-             cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['PUテープ', 'リボン', 'レース', 'ボタン', 'パーツ', 'キット/加工品'] } },
-           { headerName: "品番", field: "item_code", editable: true, width: 110,
-             headerTooltip: "商品コード（品番）。入力でマスタ自動補完" },
-           { headerName: "品名・仕様", field: "item_name", editable: true, width: 180,
-             headerTooltip: "商品名・仕様詳細" },
-           { headerName: "数量", field: "qty", editable: true, width: 75, type: 'numericColumn',
-             headerTooltip: "取引数量" },
-           { headerName: "単位", field: "unit", editable: true, width: 65,
-             headerTooltip: "数量の単位（PCS / MTR / YRD / SET / GRS 等）" },
-       ]
-    },
-    { 
-       headerName: "単価 / 採算",
-       children: [
-           { headerName: "仕入",  field: "cost_price", editable: true, width: 90, type: 'numericColumn',
-             headerTooltip: "仕入単価（仕入通貨ベース）。品番からマスタの価格を提案。過去実績と乖離がある場合、黄色で警告",
-             cellRenderer: PriceCellRenderer,
-             cellStyle: getPriceWarningStyle },
-           { headerName: "通貨", field: "cost_currency", editable: true, width: 65,
-             headerTooltip: "仕入通貨（JPY / USD / EUR / CNY）",
-             cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] } },
-           { headerName: "採算為替", field: "internal_rate", 
-             editable: (p: any) => p.data.cost_currency === 'JPY' && p.data.sales_currency !== 'JPY', 
-             width: 80, type: 'numericColumn',
-             headerTooltip: "社内採算為替レート（円仕入・外貨販売の粗利計算に使用。円取引では自動ロック）",
-             valueFormatter: numFmt,
-             cellStyle: (p: any) => p.data.cost_currency === 'JPY' && p.data.sales_currency !== 'JPY' ? {} : { backgroundColor: '#f1f5f9', color: '#94a3b8' } },
-           { headerName: "掛率", field: "markup_rate", editable: true, width: 72,
-             headerTooltip: "販売掛率（例: 1.5 = 仕入の1.5倍。手動入力時は自動で〈手動〉に切替）",
-             cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['1.2', '1.3', '1.5', '2.0', '手動(ﾏﾆｭｱﾙ)', '現法自動'] } },
-           { headerName: "販売", field: "sales_price", editable: true, width: 90, type: 'numericColumn',
-             headerTooltip: "販売単価（販売通貨ベース）。掛率から自動計算、または強制上書き可能",
-             cellRenderer: PriceCellRenderer,
-             cellStyle: getPriceWarningStyle },
-           { headerName: "通貨", field: "sales_currency", editable: true, width: 65,
-             headerTooltip: "販売通貨（JPY / USD / EUR / CNY）",
-             cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] } },
-           { headerName: "ユーザー単価", field: "end_user_price", editable: true, width: 92, type: 'numericColumn',
-             headerTooltip: "エンドユーザー向け販売単価（Sun Fashion America等の3社間取引で自動算出）",
-             valueFormatter: numFmt,
-             cellStyle: (params: any) => (params.data.customer==='Sun Fashion America' || params.data.customer==='NY Sub') ? {backgroundColor:'#fff7ed'} : {} },
-           { headerName: "諸経費", field: "misc_cost", editable: true, width: 75, type: 'numericColumn',
-             headerTooltip: "諸経費（送料・関税・梱包費等）。粗利計算に含まれる",
-             valueFormatter: numFmt },
-           { headerName: "経費通貨", field: "misc_currency", editable: true, width: 72,
-             headerTooltip: "諸経費の通貨",
-             cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] } },
-           { headerName: "実勢為替", field: "exchange_rate", 
-             editable: (p: any) => p.data.cost_currency !== 'JPY' || p.data.sales_currency !== 'JPY', 
-             width: 80, type: 'numericColumn',
-             headerTooltip: "BL確定時の実勢為替レート（外貨絡みの取引時のみ有効。BL DATEと共に入力すると粗利が確定値に切替）",
-             valueFormatter: numFmt,
-             cellStyle: (p: any) => p.data.cost_currency !== 'JPY' || p.data.sales_currency !== 'JPY' ? { backgroundColor: '#eff6ff', color: '#1e3a8a'} : { backgroundColor: '#f1f5f9', color: '#94a3b8' } },
-           { headerName: "粗利(円)", field: "gross_profit", editable: false, width: 95, type: 'numericColumn',
-             headerTooltip: "粗利（円換算・自動計算）。純国内取引(JPY)時は為替無視。外貨時はBL前=採算為替、BL後=実勢で換算",
-             valueGetter: (params: any) => {
-                 if (!params.data.sales_price || !params.data.qty || !params.data.cost_price) return null;
-                 const isDomestic = params.data.cost_currency === 'JPY' && params.data.sales_currency === 'JPY';
-                 let isFinalized = Boolean(params.data.bl_date && params.data.exchange_rate);
-                 
-                 let baseRate = 1.0;
-                 if (!isDomestic) {
-                     baseRate = isFinalized ? params.data.exchange_rate : (params.data.internal_rate || 145.0);
+               },
+               { headerName: "担当", field: "rep", editable: false, width: 60,
+                 headerTooltip: "担当営業" },
+               { headerName: "リンク", field: "link_id", editable: false, width: 100,
+                 headerTooltip: "関連行のリンクID（分割等で共通のグループIDが付与）",
+                 cellStyle: { color: '#3b82f6', fontWeight: 'bold' } },
+               { headerName: "得意先", field: "customer", editable: true, width: 130, pinned: 'left',
+                 headerTooltip: "請求先の顧客名（直接先）" },
+               { headerName: "ユーザー", field: "end_user", editable: true, width: 120,
+                 headerTooltip: "エンドユーザー（最終消費者・ブランド等）" },
+               { headerName: "仕入先", field: "supplier", editable: true, width: 120,
+                 headerTooltip: "仕入先（製造元・卸元）" },
+           ]
+        },
+        { 
+           headerName: "2. 商品情報", 
+           children: [
+               { headerName: "カテゴリ", field: "category", editable: true, width: 100,
+                 headerTooltip: "商品カテゴリ",
+                 cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['PUテープ', 'リボン', 'レース', 'ボタン', 'パーツ', 'キット/加工品'] } },
+               { headerName: "品番", field: "item_code", editable: true, width: 110,
+                 headerTooltip: "商品コード（品番）。入力でマスタ自動補完" },
+               { headerName: "品名・仕様", field: "item_name", editable: true, width: 160,
+                 headerTooltip: "商品名・仕様詳細" },
+               { headerName: "混率", field: "composition", editable: true, width: 100,
+                 headerTooltip: "素材等の混率（例: PE100%, PU5% 等）" },
+               { headerName: "数量", field: "qty", editable: true, width: 75, type: 'numericColumn',
+                 headerTooltip: "取引数量" },
+               { headerName: "単位", field: "unit", editable: true, width: 65,
+                 headerTooltip: "数量単位（PCS / MTR 等）" },
+           ]
+        },
+        { 
+           headerName: "3. 単価と採算計算",
+           children: [
+               { headerName: "[仕入] 通貨", field: "cost_currency", editable: true, width: 95,
+                 headerTooltip: "仕入通貨",
+                 cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] } },
+               { headerName: "[仕入] 単価",  field: "cost_price", editable: true, width: 95, type: 'numericColumn',
+                 headerTooltip: "仕入単価（仕入通貨ベース）。品番入力を起点に過去価格を提案",
+                 cellRenderer: PriceCellRenderer,
+                 cellStyle: getPriceWarningStyle },
+               { headerName: "[仕入] 合計", field: "cost_total", editable: false, width: 100, type: 'numericColumn',
+                 headerTooltip: "数量 × 仕入単価",
+                 valueGetter: (params: any) => { if (!params.data.qty || !params.data.cost_price) return null; return params.data.qty * params.data.cost_price; },
+                 valueFormatter: numFmt,
+                 cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
+               { headerName: "採算為替", field: "internal_rate", 
+                 editable: (p: any) => p.data.cost_currency === 'JPY' && p.data.sales_currency !== 'JPY', 
+                 width: 85, type: 'numericColumn',
+                 headerTooltip: "社内採算為替レート（円仕入・外貨販売の粗利計算用）",
+                 valueFormatter: numFmt,
+                 cellStyle: (p: any) => p.data.cost_currency === 'JPY' && p.data.sales_currency !== 'JPY' ? {} : { backgroundColor: '#f1f5f9', color: '#94a3b8' } },
+               { headerName: "実勢為替", field: "exchange_rate", 
+                 editable: (p: any) => p.data.cost_currency !== 'JPY' || p.data.sales_currency !== 'JPY', 
+                 width: 85, type: 'numericColumn',
+                 headerTooltip: "BL確定後の実勢為替レート",
+                 valueFormatter: numFmt,
+                 cellStyle: (p: any) => p.data.cost_currency !== 'JPY' || p.data.sales_currency !== 'JPY' ? { backgroundColor: '#eff6ff', color: '#1e3a8a'} : { backgroundColor: '#f1f5f9', color: '#94a3b8' } },
+               { headerName: "[経費] 通貨", field: "misc_currency", editable: true, width: 95,
+                 cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] } },
+               { headerName: "[経費] 金額", field: "misc_cost", editable: true, width: 95, type: 'numericColumn',
+                 valueFormatter: numFmt },
+               { headerName: "掛率", field: "markup_rate", editable: true, width: 75,
+                 headerTooltip: "販売掛率（例: 1.5。手動上書きで自動切替）",
+                 cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['1.2', '1.3', '1.5', '2.0', '手動(ﾏﾆｭｱﾙ)', '現法自動'] } },
+               { headerName: "[販売] 通貨", field: "sales_currency", editable: true, width: 95,
+                 cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] } },
+               { headerName: "[販売] 単価", field: "sales_price", editable: true, width: 95, type: 'numericColumn',
+                 headerTooltip: "販売単価（販売通貨ベース）。過去価格提案の対象",
+                 cellRenderer: PriceCellRenderer,
+                 cellStyle: getPriceWarningStyle },
+               { headerName: "[販売] 合計", field: "sales_total", editable: false, width: 100, type: 'numericColumn',
+                 headerTooltip: "数量 × 販売単価",
+                 valueGetter: (params: any) => { if (!params.data.qty || !params.data.sales_price) return null; return params.data.qty * params.data.sales_price; },
+                 valueFormatter: numFmt,
+                 cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
+               { headerName: "[ﾕｰｻﾞｰ]通貨", field: "end_user_currency", editable: true,
+                 headerTooltip: "ユーザー向け末端通貨",
+                 cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] },
+                 cellStyle: (params: any) => (params.data.customer==='Sun Fashion America' || params.data.customer==='NY Sub') ? {backgroundColor:'#fff7ed'} : {} },
+               { headerName: "[ﾕｰｻﾞｰ]価格", field: "end_user_price", editable: true, type: 'numericColumn',
+                 headerTooltip: "エンドユーザー向け末端単価（3社間用）",
+                 valueFormatter: numFmt,
+                 cellStyle: (params: any) => (params.data.customer==='Sun Fashion America' || params.data.customer==='NY Sub') ? {backgroundColor:'#fff7ed'} : {} },
+               { headerName: "[ﾕｰｻﾞｰ]合計", field: "end_user_total", editable: false, type: 'numericColumn',
+                 headerTooltip: "数量 × エンドユーザー単価",
+                 valueGetter: (params: any) => { if (!params.data.qty || !params.data.end_user_price) return null; return params.data.qty * params.data.end_user_price; },
+                 valueFormatter: numFmt,
+                 cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
+               { headerName: "粗利(円)", field: "gross_profit", editable: false, width: 95, type: 'numericColumn',
+                 headerTooltip: "粗利（円換算）。BL日付入力で自動的に実勢為替に切り替わり計算",
+                 valueGetter: (params: any) => {
+                     if (!params.data.sales_price || !params.data.qty || !params.data.cost_price) return null;
+                     const isDomestic = params.data.cost_currency === 'JPY' && params.data.sales_currency === 'JPY';
+                     let isFinalized = Boolean(params.data.bl_date && params.data.exchange_rate);
+                     let baseRate = 1.0;
+                     if (!isDomestic) {
+                         baseRate = isFinalized ? params.data.exchange_rate : (params.data.internal_rate || 145.0);
+                     }
+                     const qty = params.data.qty;
+                     let salesJPY = params.data.sales_currency === 'JPY' ? params.data.sales_price : params.data.sales_price * baseRate;
+                     let costJPY = params.data.cost_currency === 'JPY' ? params.data.cost_price : params.data.cost_price * baseRate;
+                     let miscJPY = params.data.misc_cost || 0;
+                     const gp = (salesJPY * qty) - (costJPY * qty) - miscJPY;
+                     return Math.floor(gp).toLocaleString();
+                 },
+                 cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b', fontWeight: 'bold' }
+               },
+               { headerName: "粗利率", field: "gross_margin", editable: false, width: 85, type: 'numericColumn',
+                 headerTooltip: "粗利額 ÷ [販売]合計金額",
+                 valueGetter: (params: any) => {
+                     if (!params.data.sales_price || !params.data.qty || !params.data.cost_price) return null;
+                     const isDomestic = params.data.cost_currency === 'JPY' && params.data.sales_currency === 'JPY';
+                     let isFinalized = Boolean(params.data.bl_date && params.data.exchange_rate);
+                     let baseRate = 1.0;
+                     if (!isDomestic) {
+                         baseRate = isFinalized ? params.data.exchange_rate : (params.data.internal_rate || 145.0);
+                     }
+                     const qty = params.data.qty;
+                     let salesJPY = params.data.sales_currency === 'JPY' ? params.data.sales_price : params.data.sales_price * baseRate;
+                     let costJPY = params.data.cost_currency === 'JPY' ? params.data.cost_price : params.data.cost_price * baseRate;
+                     let miscJPY = params.data.misc_cost || 0;
+                     const salesTotalJPY = salesJPY * qty;
+                     if (salesTotalJPY === 0) return null;
+                     const gp = salesTotalJPY - (costJPY * qty) - miscJPY;
+                     const margin = (gp / salesTotalJPY) * 100;
+                     return margin.toFixed(1) + '%';
+                 },
+                 cellStyle: (params: any) => {
+                     let color = '#059669'; // Green text
+                     if (params.value) {
+                         const m = parseFloat(params.value);
+                         if (m < 0) color = '#ef4444'; // Red alarm
+                     }
+                     return { backgroundColor: '#f1f5f9', color: color, fontWeight: 'bold' };
                  }
-                 
-                 const qty = params.data.qty;
-                 let salesJPY = params.data.sales_currency === 'JPY' ? params.data.sales_price : params.data.sales_price * baseRate;
-                 let costJPY = params.data.cost_currency === 'JPY' ? params.data.cost_price : params.data.cost_price * baseRate;
-                 let miscJPY = params.data.misc_cost || 0;
-                 const gp = (salesJPY * qty) - (costJPY * qty) - miscJPY;
-                 return Math.floor(gp).toLocaleString();
-             }
-           },
-       ]
-    },
-    { 
-       headerName: "日程・書類 ※自動採番", 
-       children: [
-           { headerName: "出荷予定", field: "factory_date", editable: true, width: 95,
-             headerTooltip: "工場出荷予定日" },
-           { headerName: "BL DATE", field: "bl_date", editable: true, width: 100,
-             headerTooltip: "B/L発行日（船積日）。記入すると粗利が実勢為替ベースに切替",
-             cellStyle: { backgroundColor: '#eff6ff' } },
-           { headerName: "発注日", field: "po_date", editable: false, width: 90,
-             headerTooltip: "発注書生成時に自動打刻される発注日" },
-           { headerName: "PO番 ※", field: "po_no", editable: false, width: 110,
-             headerTooltip: "※ システム自動採番（発注書生成時に付与）",
-             cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
-           { headerName: "INV日", field: "invoice_date", editable: false, width: 88,
-             headerTooltip: "Invoice生成時に自動打刻される発行日" },
-           { headerName: "INV番 ※", field: "invoice_no", editable: false, width: 120,
-             headerTooltip: "※ システム自動採番（Invoice生成時付与。改版時は -Rev1 等枝番追加）",
-             cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
-           { headerName: "リンク", field: "link_id", editable: false, width: 100,
-             headerTooltip: "関連行のリンクID（分割・キット化等で共通のグループIDが付与）",
-             cellStyle: { color: '#3b82f6', fontWeight: 'bold' } },
-           { headerName: "備考1", field: "comments", editable: true, width: 150,
-             headerTooltip: "社内備考1（自由記述・システムログも自動追記）" },
-           { headerName: "備考2", field: "comments2", editable: true, width: 150,
-             headerTooltip: "社内備考2（自由記述）" },
-       ]
+               },
+           ]
+        },
+        { 
+           headerName: "4. 見積・受注", 
+           children: [
+               { headerName: "見積番 ※", field: "quote_no", editable: false, width: 105,
+                 headerTooltip: "自動採番",
+                 cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
+               { headerName: "見積備考", field: "quote_remarks", editable: true, width: 140,
+                 headerTooltip: "見積書に表示させる用件・補足" },
+               { headerName: "受注日", field: "order_date", editable: true, width: 95 },
+               { headerName: "顧客発注番号", field: "order_id", editable: true, width: 110,
+                 headerTooltip: "顧客のPO番号を手入力" },
+           ]
+        },
+        { 
+           headerName: "5. 発注・生産", 
+           children: [
+               { headerName: "発注日", field: "po_date", editable: false, width: 90 },
+               { headerName: "発注番号 ※", field: "po_no", editable: false, width: 110,
+                 headerTooltip: "自動採番",
+                 cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
+               { headerName: "出荷予定", field: "factory_date", editable: true, width: 95 },
+               { headerName: "発注備考", field: "po_remarks", editable: true, width: 140,
+                 headerTooltip: "発注書に表示させる用件・補足" },
+           ]
+        },
+        { 
+           headerName: "6. 出荷・請求・入金", 
+           children: [
+               { headerName: "BL DATE", field: "bl_date", editable: true, width: 100,
+                 headerTooltip: "船積日（実勢為替発動スイッチ）",
+                 cellStyle: { backgroundColor: '#eff6ff' } },
+               { headerName: "請求書発行日", field: "invoice_date", editable: false, width: 100 },
+               { headerName: "請求番号 ※", field: "invoice_no", editable: false, width: 120,
+                 headerTooltip: "自動採番",
+                 cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
+               { headerName: "支払いTERM", field: "payment_term", editable: true, width: 100 },
+               { headerName: "入金日", field: "payment_date", editable: true, width: 95 },
+               { headerName: "請求備考", field: "invoice_remarks", editable: true, width: 140,
+                 headerTooltip: "Invoiceに表示させる特記事項" },
+           ]
+        },
+        { 
+           headerName: "7. 監査ログ", 
+           children: [
+               { headerName: "システムログ", field: "comments", editable: true, width: 250,
+                 headerTooltip: "自動追記される改版や分割履歴（自由記述も可）",
+                 cellStyle: { color: '#64748b', fontSize: '12px' } },
+           ]
+        }
+    ];
+
+    // 入金状況タブの場合、決済情報を左側の見やすい位置（管理情報のすぐ後）に繰り上げる
+    if (activeTab === 'payment') {
+        const pmtGroup = rawCols.find(g => g.headerName.startsWith('6.'));
+        if (pmtGroup) {
+            const others = rawCols.filter(g => !g.headerName.startsWith('6.'));
+            others.splice(1, 0, pmtGroup); // 1. 管理・取引先の次に挿入
+            return others;
+        }
     }
-  ])
+    return rawCols;
+  }, [activeTab]);
 
   const defaultColDef = useMemo(() => ({
     resizable: true,
     sortable: true,
     filter: true,
-    floatingFilter: true,
-    suppressHeaderMenuButton: true, // 「・・・」メニューボタンを非表示にしてフィルター行に一本化
-    tooltipShowDelay: 0,            // マウスを乗せた瞬間にツールチップ（ふんわり解説）を表示          
+    floatingFilter: true, // 2段構成にする（下段にフィルターを追い出す）
+    suppressHeaderMenuButton: true, // 1段目の項目名と同じ列にあるアイコンは完全に消して文字を広く見せる
+    tooltipShowDelay: 0,
   }), [])
 
   // Phase 1: 高度なセルチェンジフック
@@ -979,6 +1106,8 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         clipboardDelimiter={'\t'}
         isExternalFilterPresent={isExternalFilterPresent}
         doesExternalFilterPass={doesExternalFilterPass}
+        localeText={AG_GRID_LOCALE_JP}
+        autoSizeStrategy={{ type: 'fitCellContents' }}
       />
     </div>
   )
