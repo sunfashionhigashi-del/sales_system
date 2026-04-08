@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Scissors, Package, LayoutGrid, Save, Unlock, EyeOff, Undo, Redo, Archive, Ship, Copy, BarChart2, CheckCircle, FileText, Database } from 'lucide-react'
+import { Plus, Scissors, Package, LayoutGrid, Save, Unlock, EyeOff, Undo, Redo, Archive, Ship, Copy, BarChart2, CheckCircle, FileText, Database, Edit } from 'lucide-react'
 import GridArea from './components/GridArea'
 import DashboardArea from './components/DashboardArea'
 import MasterViewer from './components/MasterViewer'
@@ -181,13 +181,15 @@ function App() {
                  </button>
               </div>
 
-           </div>
+              {/* HERO: クラウドに保存ボタン (左に移動) */}
+              <button onClick={() => gridAreaRef.current?.saveData()} className="group flex items-center px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow text-sm font-bold transition-all focus:ring-4 focus:ring-blue-100 ml-2">
+                 <Save size={16} className="mr-2 group-hover:scale-110 transition-transform" />保存
+                 <span className="ml-2 px-1.5 py-0.5 bg-blue-800 rounded font-mono text-[10px]">Ctrl+S</span>
+              </button>
 
-           {/* HERO: クラウドに保存ボタン */}
-           <button onClick={() => gridAreaRef.current?.saveData()} className="group flex items-center px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow text-sm font-bold transition-all focus:ring-4 focus:ring-blue-100">
-              <Save size={16} className="mr-2 group-hover:scale-110 transition-transform" />変更をクラウドに保存
-              <span className="ml-3 px-1.5 py-0.5 bg-blue-800 rounded font-mono text-[10px]">Ctrl+S</span>
-           </button>
+           </div>
+           
+           <div></div>
 
         </div>
 
@@ -198,6 +200,7 @@ function App() {
           <div className="flex items-center gap-1.5">
              <span className="font-bold text-slate-500 tracking-wider mr-2 text-[11px] bg-slate-200/50 px-2 py-0.5 rounded-full">選択行の操作</span>
              
+             <button onClick={() => gridAreaRef.current?.openDetailModal()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-blue-50 text-blue-700 font-medium transition shadow-sm" title="選択した行の詳細入力画面を開く"><Edit size={13} className="mr-1.5 text-blue-500"/>詳細編集</button>
              <button onClick={() => gridAreaRef.current?.duplicateRow()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-100 text-slate-700 font-medium transition shadow-sm" title="選択した行を複製して新しい行を作成"><Copy size={13} className="mr-1.5 text-slate-500"/>複製<Kbd>Alt+C</Kbd></button>
              <button onClick={() => gridAreaRef.current?.splitRow()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-100 text-slate-700 font-medium transition shadow-sm" title="選択した行の数量を分割して新しい行を派生"><Scissors size={13} className="mr-1.5 text-slate-500"/>分割<Kbd>Alt+S</Kbd></button>
              <button onClick={() => gridAreaRef.current?.kitRows()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-100 text-slate-700 font-medium transition shadow-sm" title="複数の行をまたいで加工セット品を生成"><Package size={13} className="mr-1.5 text-slate-500"/>加工キット<Kbd>Alt+K</Kbd></button>
@@ -226,10 +229,8 @@ function App() {
              <button onClick={() => gridAreaRef.current?.generatePO()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-medium transition shadow-sm" title="発注待の行からメーカー向け PO (Purchasing Order) を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>発注書</button>
              <button onClick={() => gridAreaRef.current?.generateInvoice()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-medium transition shadow-sm" title="出荷済みの行から顧客向け Invoice を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>Invoice</button>
              
-             <div className="hidden 2xl:flex items-center gap-1.5 ml-1">
-                 <button onClick={() => alert('Proforma (Phase 3)')} className="flex items-center px-3 py-1.5 bg-white border border-slate-200 rounded text-slate-400 font-medium opacity-50" title="事前送金用の Proforma Invoice を生成"><FileText size={13} className="mr-1.5 text-slate-300"/>Proforma</button>
-                 <button onClick={() => alert('Packing List (Phase 3)')} className="flex items-center px-3 py-1.5 bg-white border border-slate-200 rounded text-slate-400 font-medium opacity-50" title="出荷用の Packing List を生成"><FileText size={13} className="mr-1.5 text-slate-300"/>Packing List</button>
-             </div>
+             <button onClick={() => alert('[Phase 3] Proforma\nこの機能はフェーズ3で実装予定ですが、プレースホルダーとして復活させました。')} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-50 text-slate-700 font-medium transition shadow-sm ml-1" title="事前送金用の Proforma Invoice を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>Proforma</button>
+             <button onClick={() => alert('[Phase 3] Packing List\nこの機能はフェーズ3で実装予定ですが、プレースホルダーとして復活させました。')} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-50 text-slate-700 font-medium transition shadow-sm" title="出荷用の Packing List を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>Packing List</button>
           </div>
         </div>
       </div>
