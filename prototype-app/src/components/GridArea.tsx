@@ -7,6 +7,7 @@ ModuleRegistry.registerModules([AllCommunityModule, AllEnterpriseModule])
 
 import { supabase } from '../lib/supabase'
 import OrderDetailModal from './OrderDetailModal'
+import { Database } from 'lucide-react'
 
 interface GridAreaProps {
   activeTab: string;
@@ -640,10 +641,11 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const PAGE_SIZE = 100;
 
-  const buildBaseQuery = () => {
-      let query = supabase.from('order_items').select('*');
+  const buildBaseQuery = (withCount = false) => {
+      let query = supabase.from('order_items').select('*', withCount ? { count: 'exact' } : undefined);
       
       // role ベースのフィルタ
       if (session?.user?.role_id !== 'admin' && session?.user?.name) {
@@ -673,15 +675,16 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const query = buildBaseQuery().order('created_at', { ascending: false }).range(0, PAGE_SIZE - 1);
+      const query = buildBaseQuery(true).order('created_at', { ascending: false }).order('id', { ascending: true }).range(0, PAGE_SIZE - 1);
       
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       
       if (error) {
         console.error('Supabase fetch error:', error)
       } else {
         setRowData(data || [])
         setPage(1);
+        if (count !== null) setTotalCount(count);
         setHasMore((data?.length || 0) === PAGE_SIZE);
       }
     } catch (e) {
@@ -697,7 +700,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
           setIsLoading(true);
           const from = page * PAGE_SIZE;
           const to = from + PAGE_SIZE - 1;
-          const query = buildBaseQuery().order('created_at', { ascending: false }).range(from, to);
+          const query = buildBaseQuery(false).order('created_at', { ascending: false }).order('id', { ascending: true }).range(from, to);
           
           const { data, error } = await query;
           if (error) throw error;
@@ -1183,7 +1186,15 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   }, [captureSnapshot])
 
   return (
-    <div className="ag-theme-alpine w-full h-full text-sm">
+    <div className="ag-theme-alpine w-full h-full text-sm relative">
+      {totalCount !== null && (
+         <div className="absolute bottom-6 right-6 z-50 bg-slate-800/90 backdrop-blur-sm text-white px-4 py-2 rounded-full shadow-xl border border-slate-700/50 flex items-center pointer-events-none">
+             <Database size={14} className="mr-2 text-slate-400" />
+             <span className="font-medium text-slate-300 text-xs tracking-wider mr-2">該当データ</span>
+             <span className="font-bold text-amber-400 text-sm">{totalCount.toLocaleString()}</span>
+             <span className="font-medium text-slate-300 text-xs tracking-wider ml-1">件</span>
+         </div>
+      )}
       <AgGridReact
         ref={gridRef}
         rowData={isLoading && page === 0 ? undefined : rowData} 
