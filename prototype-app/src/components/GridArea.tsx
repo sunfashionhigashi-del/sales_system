@@ -470,22 +470,28 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
        const selected = gridRef.current?.api.getSelectedNodes()
        if (!selected || selected.length === 0) { alert("受注登録する内容（見積中など）を選択してください。"); return }
        
-       // 論理ガード：見積中、先行発注以外は受注処理できない（すでに未請求など）
+       // 論理ガード：見積中、先行発注以外は受注処理できない（すでに発注済など）
        const invalid = selected.filter(node => !['見積中', '先行発注'].includes(node.data.status));
        if (invalid.length > 0) {
            alert("【エラー】選択された行の中に、受注登録ができないステータスが含まれています。\n※受注登録できるのは「見積中」または「先行発注」のデータのみです。");
            return;
        }
 
+       const orderDate = prompt("受注日（Order Date）を入力してください（例: 2024-04-01）", new Date().toISOString().split('T')[0]);
+       if (!orderDate) return;
+       const customerPo = prompt("客先発注番号（Customer PO）を入力してください（任意）", "");
+
        const updates = selected.map(node => {
-           // ロジック点検: 見積中なら「発注待」へ。既に先行未請求なら「未請求」へスライド。
+           // ロジック点検: 見積中なら「発注待」へ。既に先行発注済なら「未請求」へスライド。
            let newStatus = '発注待';
+           // if it was preordered, ordering from customer means it goes straight into waiting for invoice.
            if (node.data.status === '先行発注') newStatus = '未請求';
            
            return {
                ...node.data, 
                status: newStatus, 
-               order_date: new Date().toISOString().split('T')[0],
+               order_date: orderDate,
+               customer_po: customerPo !== null && customerPo.trim() !== '' ? customerPo : node.data.customer_po,
                updated_at: new Date().toISOString()
            };
        })
