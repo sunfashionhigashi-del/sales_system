@@ -654,7 +654,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
       if (activeTab === 'archived') {
           query = query.eq('archived', true);
       } else {
-          query = query.not('archived', 'is', true);
+          query = query.or('archived.is.null,archived.eq.false');
           if (activeTab === 'quote') query = query.eq('status', '見積中');
           if (activeTab === 'alert_po') query = query.eq('status', '発注待');
           if (activeTab === 'pre_order') query = query.eq('status', '先行発注');
@@ -1186,7 +1186,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
     <div className="ag-theme-alpine w-full h-full text-sm">
       <AgGridReact
         ref={gridRef}
-        rowData={rowData.length === 0 ? undefined : rowData} 
+        rowData={isLoading && page === 0 ? undefined : rowData} 
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
         rowSelection="multiple"
