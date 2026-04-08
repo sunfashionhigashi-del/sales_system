@@ -637,26 +637,97 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
     }
   }))
 
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const PAGE_SIZE = 100;
+
+  const buildBaseQuery = () => {
+      let query = supabase.from('order_items').select('*');
+      
+      // role ベースのフィルタ
+      if (session?.user?.role_id !== 'admin' && session?.user?.name) {
+          query = query.eq('rep', session.user.name);
+      }
+
+      // タブごとのフィルタ
+      if (activeTab === 'archived') {
+          query = query.eq('archived', true);
+      } else {
+          query = query.not('archived', 'is', true);
+          if (activeTab === 'quote') query = query.eq('status', '見積中');
+          if (activeTab === 'alert_po') query = query.eq('status', '発注待');
+          if (activeTab === 'pre_order') query = query.eq('status', '先行発注');
+          if (activeTab === 'process') query = query.in('status', ['加工中', '材料充当']);
+          if (activeTab === 'pending_invoice') {
+              query = query.in('status', ['発注済', '加工中']).is('invoice_no', null);
+          }
+      }
+      return query;
+  };
+
   useEffect(() => {
-    fetchData()
-  }, [])
+     fetchData();
+  }, [activeTab]);
 
   const fetchData = async () => {
     try {
-      const { data, error } = await supabase
-        .from('order_items')
-        .select('*')
-        .order('created_at', { ascending: false })
+      setIsLoading(true);
+      const query = buildBaseQuery().order('created_at', { ascending: false }).range(0, PAGE_SIZE - 1);
+      
+      const { data, error } = await query;
       
       if (error) {
         console.error('Supabase fetch error:', error)
       } else {
         setRowData(data || [])
+        setPage(1);
+        setHasMore((data?.length || 0) === PAGE_SIZE);
       }
     } catch (e) {
       console.error('Fetch exception:', e)
+    } finally {
+      setIsLoading(false);
     }
   }
+
+  const loadMoreData = async () => {
+      if (!hasMore || isLoading) return;
+      try {
+          setIsLoading(true);
+          const from = page * PAGE_SIZE;
+          const to = from + PAGE_SIZE - 1;
+          const query = buildBaseQuery().order('created_at', { ascending: false }).range(from, to);
+          
+          const { data, error } = await query;
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+              setRowData(prev => [...prev, ...data]);
+              setPage(p => p + 1);
+              if (data.length < PAGE_SIZE) setHasMore(false);
+          } else {
+              setHasMore(false);
+          }
+      } catch (e) {
+          console.error("Load more error:", e);
+      } finally {
+          setIsLoading(false);
+      }
+  }
+
+  // Handle local scroll for infinite loading
+  const onBodyScroll = (event: any) => {
+      if (event.direction === 'vertical') {
+          const api = gridRef.current?.api;
+          if (!api || !hasMore || isLoading) return;
+          // Approximate check if we are near the bottom
+          const lastRowIndex = api.getLastDisplayedRowIndex();
+          if (lastRowIndex >= rowData.length - 10) {
+              loadMoreData();
+          }
+      }
+  };
 
   const isExternalFilterPresent = useCallback(() => true, [])
   const doesExternalFilterPass = useCallback((node: any) => {
@@ -1126,6 +1197,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         clipboardDelimiter={'\t'}
         isExternalFilterPresent={isExternalFilterPresent}
         doesExternalFilterPass={doesExternalFilterPass}
+        onBodyScroll={onBodyScroll}
         localeText={AG_GRID_LOCALE_JP}
         autoSizeStrategy={{ type: 'fitCellContents' }}
       />
