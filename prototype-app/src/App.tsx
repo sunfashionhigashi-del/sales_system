@@ -252,7 +252,7 @@ function App() {
       {/* 4. Main Area (Grid or Dashboard) */}
       <div className="flex-1 w-full overflow-hidden relative">
           {activeTab === 'dashboard' ? (
-              <DashboardArea session={session} />
+              <DashboardArea session={session} onTabChange={setActiveTab} />
           ) : activeTab === 'master' ? (
               <MasterViewer />
           ) : (
