@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   invoice_no text,
   link_id text,
   comments text,
+  system_log text,
   locked boolean DEFAULT false,
   revision integer DEFAULT 0,
   
