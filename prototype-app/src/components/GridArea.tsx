@@ -140,8 +140,17 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   }, [])
 
   useImperativeHandle(ref, () => ({
+    openDetailModal: () => {
+       const selectedNodes = gridRef.current?.api.getSelectedNodes();
+       if (selectedNodes && selectedNodes.length > 0) {
+           setSelectedRowData(selectedNodes[0].data);
+       } else {
+           alert("詳細を開く行を選択してください。");
+       }
+    },
     addRow: (status: string) => {
       captureSnapshot()
+      const today = new Date().toISOString().split('T')[0];
       const newRow = {
         id: crypto.randomUUID(),
         status: status,
@@ -149,6 +158,8 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         rep: session?.user?.name || '',
         qty: 0,
         markup_rate: '1.0',
+        order_date: (status === '発注待' || status === '先行発注') ? today : null,
+        po_date: status === '先行発注' ? today : null,
         created_at: new Date().toISOString(),
         locked: false
       }
@@ -201,7 +212,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
           id: crypto.randomUUID(),
           qty: splitQty,
           link_id: splitFamilyId,
-          comments: `[SYS] 分割 (元:${currentQty}) ` + (data.comments || ""),
+          system_log: `[SYS] 分割 (元:${currentQty}) ` + (data.system_log || ""),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           locked: false
@@ -290,7 +301,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
           nData.status = '材料充当'; // 材料を消費して見当たらなくする
           nData.locked = true;
           nData.link_id = nData.link_id ? nData.link_id + ", " + prcId : prcId;
-          nData.comments = `[SYS] ${prcId}へ投入 ` + (nData.comments || "");
+          nData.system_log = `[SYS] ${prcId}へ投入 ` + (nData.system_log || "");
           nData.updated_at = new Date().toISOString();
           updatedNodes.push(nData);
       });
@@ -315,7 +326,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
           sales_currency: "JPY",
           link_id: prcId,
           po_date: new Date().toISOString().split('T')[0],
-          comments: `[SYS] 材料費 ${Math.floor(totalCostJpy)}円 + 加工賃 ${extraCost}円 = 仕入原価`,
+          system_log: `[SYS] 材料費 ${Math.floor(totalCostJpy)}円 + 加工賃 ${extraCost}円 = 仕入原価`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           locked: false
@@ -353,7 +364,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                status: newStatus,
                revision: currentRev,
                last_locked_state: JSON.stringify(node.data), // 変更差分比較用・改版直前のスナップショットを内部に隠し持つ
-               comments: `[SYS] ${shortDate} 改版解除 (${prevInv}) ` + (node.data.comments || "")
+               system_log: `[SYS] ${shortDate} 改版解除 (${prevInv}) ` + (node.data.system_log || "")
             }
         })
         gridRef.current?.api.applyTransaction({ update: updates })
@@ -446,7 +457,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
               ...node.data, 
               quote_no: baseNo, 
               last_qt_snapshot: JSON.stringify(node.data), // 再発行用の最新スナップを保存
-              comments: (node.data.comments || "") + diffMsg,
+              system_log: diffMsg ? (node.data.system_log || "") + diffMsg : node.data.system_log,
               updated_at: new Date().toISOString() 
           }
        })
@@ -539,7 +550,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
               po_date: new Date().toISOString().split('T')[0],
               po_no: baseNo,
               last_po_snapshot: JSON.stringify(node.data), // 再発行用の最新スナップ
-              comments: (node.data.comments || "") + diffMsg,
+              system_log: diffMsg ? (node.data.system_log || "") + diffMsg : node.data.system_log,
               updated_at: new Date().toISOString()
           }
        })
@@ -600,7 +611,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
               invoice_no: baseNo,
               locked: true,
               last_locked_state: null, // 差分チェック完了後にスナップショットを破棄
-              comments: (node.data.comments || "") + diffMsg,
+              system_log: diffMsg ? (node.data.system_log || "") + diffMsg : node.data.system_log,
               updated_at: new Date().toISOString()
           }
        })
@@ -810,10 +821,12 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                  cellStyle: { color: '#3b82f6', fontWeight: 'bold' } },
                { headerName: "客先発注No", field: "customer_po", editable: true, width: 110,
                  headerTooltip: "顧客側での発注番号(PO)" },
-               { headerName: "当社発注No", field: "order_no", editable: true, width: 110,
-                 headerTooltip: "当社の発注番号" },
-               { headerName: "Invoice", field: "invoice_no", editable: true, width: 90,
-                 headerTooltip: "Invoice番号" },
+               { headerName: "当社発注No", field: "order_no", editable: false, width: 110,
+                 headerTooltip: "自動採番",
+                 cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
+               { headerName: "Invoice", field: "invoice_no", editable: false, width: 90,
+                 headerTooltip: "自動採番",
+                 cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
                { headerName: "得意先", field: "customer", editable: true, width: 130, pinned: 'left',
                  headerTooltip: "請求先の顧客名（直接先）" },
                { headerName: "ユーザー", field: "end_user", editable: true, width: 120,
@@ -986,11 +999,14 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
            ]
         },
         { 
-           headerName: "7. 監査ログ", 
+           headerName: "7. メモ・備考", 
            children: [
-               { headerName: "システムログ", field: "comments", editable: true, width: 250,
-                 headerTooltip: "自動追記される改版や分割履歴（自由記述も可）",
-                 cellStyle: { color: '#64748b', fontSize: '12px' } },
+               { headerName: "コメント・備考", field: "comments", editable: true, width: 250,
+                 headerTooltip: "各行に対する自由記述メモ等",
+                 cellEditor: 'agLargeTextCellEditor', cellEditorPopup: true },
+               { headerName: "システムログ", field: "system_log", editable: false, width: 250,
+                 headerTooltip: "自動記録される改版や分割履歴",
+                 cellStyle: { color: '#64748b', fontSize: '12px' } }
            ]
         }
     ];
@@ -1100,7 +1116,6 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
       <AgGridReact
         ref={gridRef}
         rowData={rowData.length === 0 ? undefined : rowData} 
-        onRowDoubleClicked={(e) => setSelectedRowData(e.data)}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
         rowSelection="multiple"

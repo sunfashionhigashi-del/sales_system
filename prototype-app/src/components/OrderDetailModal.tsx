@@ -111,21 +111,27 @@ const OrderDetailModal = ({ data, onClose, onSave }: OrderDetailModalProps) => {
           <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
              <h3 className="text-sm font-bold text-gray-700 border-b pb-2 mb-4">書類番号・日付管理</h3>
              <div className="grid grid-cols-4 gap-4">
-                <div><label className={labelStyle}>Quote No (見積)</label><input type="text" name="quote_no" value={formData.quote_no || ''} onChange={handleChange} className={inputStyle} /></div>
+                <div><label className={labelStyle}>Quote No (見積)</label><input type="text" name="quote_no" value={formData.quote_no || ''} readOnly className={`${inputStyle} bg-gray-100 text-gray-500 cursor-not-allowed`} title="システムで自動発番されます" /></div>
                 <div><label className={labelStyle}>Customer PO</label><input type="text" name="customer_po" value={formData.customer_po || ''} onChange={handleChange} className={inputStyle} /></div>
                 <div><label className={labelStyle}>受注日</label><input type="date" name="order_date" value={formData.order_date?.replace(/\//g, '-') || ''} onChange={handleChange} className={inputStyle} /></div>
                 <div><label className={labelStyle}>出荷予定日 (Factory)</label><input type="date" name="factory_date" value={formData.factory_date?.replace(/\//g, '-') || ''} onChange={handleChange} className={inputStyle} /></div>
                 
-                <div><label className={labelStyle}>PO No (発注書)</label><input type="text" name="po_no" value={formData.order_no || formData.po_no || ''} onChange={(e)=>{handleChange(e); setFormData((prev:any)=>({...prev, order_no: e.target.value}))}} className={inputStyle} /></div>
+                <div><label className={labelStyle}>PO No (発注書)</label><input type="text" name="po_no" value={formData.order_no || formData.po_no || ''} onChange={(e)=>{handleChange(e); setFormData((prev:any)=>({...prev, order_no: e.target.value}))}} className={`${inputStyle} bg-gray-100 text-gray-500 cursor-not-allowed`} readOnly title="システムで自動発番されます" /></div>
                 <div><label className={labelStyle}>発注日</label><input type="date" name="po_date" value={formData.po_date?.replace(/\//g, '-') || ''} onChange={handleChange} className={inputStyle} /></div>
-                <div><label className={labelStyle}>Invoice No (請求)</label><input type="text" name="invoice_no" value={formData.invoice_no || ''} onChange={handleChange} className={inputStyle} /></div>
+                <div><label className={labelStyle}>Invoice No (請求)</label><input type="text" name="invoice_no" value={formData.invoice_no || ''} readOnly className={`${inputStyle} bg-gray-100 text-gray-500 cursor-not-allowed`} title="システムで自動発番されます" /></div>
                 <div><label className={labelStyle}>Invoice Date</label><input type="date" name="invoice_date" value={formData.invoice_date?.replace(/\//g, '-') || ''} onChange={handleChange} className={inputStyle} /></div>
              </div>
           </div>
           
-          <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm mb-6">
-              <h3 className="text-sm font-bold text-gray-700 border-b pb-2 mb-4">コメント・備考</h3>
-              <textarea name="comments" value={formData.comments || ''} onChange={handleChange} rows={3} className={inputStyle}></textarea>
+          <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                  <h3 className="text-sm font-bold text-gray-700 border-b pb-2 mb-4">コメント・備考</h3>
+                  <textarea name="comments" value={formData.comments || ''} onChange={handleChange} rows={3} className={inputStyle} placeholder="手動で入力する備考やメモ"></textarea>
+              </div>
+              <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                  <h3 className="text-sm font-bold text-gray-700 border-b pb-2 mb-4">システムログ</h3>
+                  <textarea name="system_log" value={formData.system_log || ''} readOnly rows={3} className={`${inputStyle} bg-slate-50 text-slate-500 font-mono text-xs`} placeholder="システムの自動処理履歴がここに記録されます"></textarea>
+              </div>
           </div>
 
         </div>
