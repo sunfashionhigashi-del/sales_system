@@ -97,6 +97,17 @@ const OrderDetailModal = ({ data, onClose, onSave }: OrderDetailModalProps) => {
     onSave({ ...data, ...formData });
   };
 
+  const [activeTab, setActiveTab] = useState<'detail'|'audit'>('detail');
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+     if (activeTab === 'audit' && data?.id) {
+         supabase.from('audit_logs').select('*').eq('order_id', data.id).order('created_at', { ascending: false }).then(({data: logs}) => {
+             if (logs) setAuditLogs(logs);
+         });
+     }
+  }, [activeTab, data?.id]);
+
   if (!data) return null;
 
   const inputStyle = "w-full border rounded p-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white transition-colors";
@@ -115,14 +126,22 @@ const OrderDetailModal = ({ data, onClose, onSave }: OrderDetailModalProps) => {
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white shrink-0">
-          <h2 className="text-lg font-bold flex items-center tracking-widest">
-            <span className="bg-blue-600 px-2 py-1 rounded text-xs mr-3 font-mono">ID: {data.id?.slice(0,8)}</span>
-            オーダー詳細・直接入力
-          </h2>
+          <div className="flex items-center space-x-6">
+            <h2 className="text-lg font-bold flex items-center tracking-widest mr-4">
+              <span className="bg-blue-600 px-2 py-1 rounded text-xs mr-3 font-mono">ID: {data.id?.slice(0,8)}</span>
+              オーダー詳細
+            </h2>
+            <div className="flex space-x-1 border-l border-slate-700 pl-6">
+               <button type="button" onClick={() => setActiveTab('detail')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition ${activeTab === 'detail' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}>基本情報</button>
+               <button type="button" onClick={() => setActiveTab('audit')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition flex items-center ${activeTab === 'audit' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}>変更履歴 (Logs)</button>
+            </div>
+          </div>
           <div className="flex items-center space-x-3">
-             <button type="submit" disabled={isSubmitting} className="flex items-center bg-blue-600 hover:bg-blue-500 text-white px-5 py-1.5 rounded font-bold transition shadow-sm disabled:opacity-50">
-                <Save size={16} className="mr-2" /> 保存して閉じる
-             </button>
+             {activeTab === 'detail' && (
+                <button type="submit" disabled={isSubmitting} className="flex items-center bg-blue-600 hover:bg-blue-500 text-white px-5 py-1.5 rounded font-bold transition shadow-sm disabled:opacity-50">
+                   <Save size={16} className="mr-2" /> 保存して閉じる
+                </button>
+             )}
              <button type="button" onClick={onClose} className="p-1.5 text-slate-400 hover:text-white transition rounded border border-transparent hover:border-slate-600 bg-slate-800">
                 <X size={20} />
              </button>
@@ -131,6 +150,8 @@ const OrderDetailModal = ({ data, onClose, onSave }: OrderDetailModalProps) => {
 
         {/* Form Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {activeTab === 'detail' ? (
+            <>
           
           {/* Section 1: 基本・取引情報 */}
           <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm relative">
@@ -235,7 +256,37 @@ const OrderDetailModal = ({ data, onClose, onSave }: OrderDetailModalProps) => {
                   <textarea value={data.system_log || ''} readOnly rows={3} className={`${inputStyle} bg-slate-100 text-slate-500 font-mono text-xs`} placeholder="システムの自動処理履歴がここに記録されます"></textarea>
               </div>
           </div>
-
+          </>
+          ) : (
+            <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm h-full flex flex-col">
+               <h3 className="text-sm font-bold text-slate-700 border-b pb-4 mb-4 flex items-center">
+                  データベース監査ログ（Audit Trail）
+                  <span className="ml-3 text-xs font-normal text-slate-500">このオーダーに関する変更履歴が新しい順に表示されます。</span>
+               </h3>
+               <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+                  {auditLogs.length === 0 ? (
+                      <p className="text-center text-slate-400 py-10">履歴データがありません</p>
+                  ) : (
+                      auditLogs.map((log: any) => (
+                          <div key={log.id} className="border-l-4 border-l-blue-500 pl-4 py-2 border-b border-slate-100 last:border-0 relative">
+                             <div className="flex items-center justify-between mb-2">
+                                <strong className={`text-xs px-2 py-0.5 rounded ${log.action === 'UPDATE' ? 'bg-amber-100 text-amber-700' : log.action === 'INSERT' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                   {log.action}
+                                </strong>
+                                <span className="text-xs text-slate-400">{new Date(log.created_at).toLocaleString('ja-JP')}</span>
+                             </div>
+                             <p className="text-sm text-slate-600 mb-2"><span className="font-bold mr-2">ユーザー:</span> {log.user_name}</p>
+                             {log.changes_json && (
+                                <pre className="bg-slate-50 p-2 text-[10px] text-slate-500 font-mono rounded overflow-x-auto border border-slate-200">
+                                   {JSON.stringify(log.changes_json, null, 2)}
+                                </pre>
+                             )}
+                          </div>
+                      ))
+                  )}
+               </div>
+            </div>
+          )}
         </div>
       </form>
     </div>

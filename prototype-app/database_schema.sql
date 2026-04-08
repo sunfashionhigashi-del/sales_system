@@ -194,3 +194,58 @@ ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow anonymous read access customers" ON customers FOR SELECT USING (true);
 CREATE POLICY "Allow anonymous insert access customers" ON customers FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow anonymous update access customers" ON customers FOR UPDATE USING (true);
+
+-- ==========================================
+-- 監査ログ関連 (Phase 3)
+-- ==========================================
+
+-- 7. 監査ログテーブル (audit_logs)
+DROP TABLE IF EXISTS audit_logs CASCADE;
+CREATE TABLE audit_logs (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    order_id uuid REFERENCES order_items(id) ON DELETE CASCADE,
+    action text NOT NULL,                    -- INSERT, UPDATE, DELETE
+    user_name text DEFAULT 'system',         -- 操作ユーザー（Supabaseのauth.uid()やAPIリクエストから）
+    changes_json jsonb,                      -- 変更前後の差異などを記録
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow anonymous read access audit_logs" ON audit_logs FOR SELECT USING (true);
+CREATE POLICY "Allow anonymous insert access audit_logs" ON audit_logs FOR INSERT WITH CHECK (true);
+
+-- 8. 監査ログ記録用トリガー関数 (PostgreSQL Trigger)
+CREATE OR REPLACE FUNCTION log_order_changes()
+RETURNS trigger AS $$
+DECLARE
+    changed_data jsonb;
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        -- 古い行と新しい行を比較し、変更があったカラムだけを抽出する実装例（簡易版として全体を保存）
+        changed_data := jsonb_build_object(
+            'old', row_to_json(OLD),
+            'new', row_to_json(NEW)
+        );
+        INSERT INTO audit_logs (order_id, action, user_name, changes_json)
+        VALUES (NEW.id, 'UPDATE', coalesce(current_setting('request.jwt.claims', true)::jsonb->>'email', 'system_update'), changed_data);
+        RETURN NEW;
+    ELSIF TG_OP = 'INSERT' THEN
+        changed_data := jsonb_build_object('new', row_to_json(NEW));
+        INSERT INTO audit_logs (order_id, action, user_name, changes_json)
+        VALUES (NEW.id, 'INSERT', coalesce(current_setting('request.jwt.claims', true)::jsonb->>'email', 'system_insert'), changed_data);
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        changed_data := jsonb_build_object('old', row_to_json(OLD));
+        INSERT INTO audit_logs (order_id, action, user_name, changes_json)
+        VALUES (OLD.id, 'DELETE', coalesce(current_setting('request.jwt.claims', true)::jsonb->>'email', 'system_delete'), changed_data);
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- トリガーの登録 (order_itemsへの変更を監視)
+DROP TRIGGER IF EXISTS trigger_log_order_changes ON order_items;
+CREATE TRIGGER trigger_log_order_changes
+    AFTER INSERT OR UPDATE OR DELETE ON order_items
+    FOR EACH ROW EXECUTE FUNCTION log_order_changes();
