@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   status text NOT NULL DEFAULT '見積中',
   quote_no text,
   order_date text,
-  order_id text,
+  customer_po text,
   rep text,
   customer text,
   end_user text,
@@ -17,19 +17,23 @@ CREATE TABLE IF NOT EXISTS order_items (
   
   category text,
   item_code text,
+  supplier_item_code text,
   item_size text,
   item_color text,
   item_name text,
   origin text,
-  qty integer,
+  qty numeric,
   unit text,
+  package_qty numeric,
+  package_unit text,
   
   cost_price numeric,
   cost_currency text DEFAULT 'JPY',
   markup_rate text,
   sales_price numeric,
-  end_user_price numeric,
   sales_currency text DEFAULT 'USD',
+  end_user_price numeric,
+  end_user_currency text DEFAULT 'USD',
   misc_cost numeric,
   misc_currency text DEFAULT 'JPY',
   
@@ -39,7 +43,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   factory_date text,
   bl_date text,
   po_date text,
-  po_no text,
+  order_no text,
   invoice_date text,
   invoice_no text,
   link_id text,
@@ -68,26 +72,124 @@ CREATE POLICY "Allow anonymous delete access"
 
 -- 2. ダミーデータの挿入
 INSERT INTO order_items (
-  status, quote_no, order_date, order_id, rep, customer, end_user, supplier,
-  category, item_code, item_size, item_color, item_name, origin, qty, unit,
+  status, quote_no, order_date, customer_po, rep, customer, end_user, supplier,
+  category, item_code, supplier_item_code, item_size, item_color, item_name, origin, qty, unit, package_qty, package_unit,
   cost_price, cost_currency, markup_rate, sales_price, sales_currency, misc_cost, misc_currency,
-  exchange_rate, internal_rate, factory_date, bl_date, po_no, invoice_no, po_date, invoice_date, comments
+  exchange_rate, internal_rate, factory_date, bl_date, order_no, invoice_no, po_date, invoice_date, comments
 ) VALUES 
 (
   '発注済', 'QT-260320-01', '2026/04/01', 'ABC-123', '松岡', 'Shanghai Sub', '', 'A社',
-  'PUテープ', 'MW-0806T', '8000D 6mm', '透明(Clear)', 'モビロンテープ', 'JP', 20, 'kg',
+  'PUテープ', 'MW-0806T', '', '8000D 6mm', '透明(Clear)', 'モビロンテープ', 'JP', 20, 'kg', 1, 'bag',
   120.0, 'JPY', '1.5', 200.0, 'USD', 50, 'JPY',
   148.50, 145.00, '2026/04/10', '2026/04/15', 'PO-260401-A-01', 'INV-SH-001', '2026/04/02', '', '特になし'
 ),
 (
   '請求待ち', 'QT-260325-05', '2026/04/02', 'USPO-9876', '松岡', 'NY Sub', '', '国内メーカーB',
-  'リボン', 'RIBBON-001', '9mm', '赤(Red)', 'サテンリボン', 'CN', 500, 'Roll',
+  'リボン', 'RIBBON-001', '', '9mm', '赤(Red)', 'サテンリボン', 'CN', 500, 'Roll', 30, 'm',
   50.0, 'CNY', '1.3', 80.0, 'JPY', 0, 'JPY',
   21.50, 20.00, '2026/04/05', '2026/04/08', 'PO-260402-B-01', '', '2026/04/02', '', '前受け不要'
 ),
 (
   '見積中', '', '', '', '大谷', '米国客先C', '', '栄レース',
-  'レース', 'R-F-0099', '20mm', '黒(Black)', 'ストレッチレース', 'JP', 1000, 'm',
+  'レース', 'R-F-0099', '', '20mm', '黒(Black)', 'ストレッチレース', 'JP', 1000, 'm', 100, 'm',
   15.5, 'JPY', '手動(ﾏﾆｭｱﾙ)', 22.0, 'USD', 0, 'JPY',
   152.00, 150.00, '', '', '', '', '', '', '見積回答待ち'
 );
+
+-- ==========================================
+-- マスター用テーブルの追加
+-- ==========================================
+
+-- 3. 仕入先マスター (suppliers)
+DROP TABLE IF EXISTS suppliers CASCADE;
+CREATE TABLE suppliers (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  supplier_code text UNIQUE,
+  company_type text,             -- 株式会社、有限会社 など
+  company_type_position text,    -- 前株、後株、なし
+  company_name text NOT NULL,
+  postal_code text,
+  address text,
+  phone text,
+  fax text,
+  email text,
+  contact_person text,
+  payment_terms text,            -- 締日・支払日
+  notes text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow anonymous read access suppliers" ON suppliers FOR SELECT USING (true);
+CREATE POLICY "Allow anonymous insert access suppliers" ON suppliers FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow anonymous update access suppliers" ON suppliers FOR UPDATE USING (true);
+
+-- 4. 製品マスター 基本設定 (products) - 親テーブル
+DROP TABLE IF EXISTS products CASCADE;
+CREATE TABLE products (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  item_code text UNIQUE NOT NULL,        -- 当社品番 (例: TAPE-001)
+  supplier_item_code text,               -- メーカー品番 / 仕入先品番
+  category text,                         -- カテゴリ (PUテープ、リボンなど)
+  item_name text,                        -- 品名
+  package_qty numeric,                   -- 入り数・仕立て数量 (例: 50)
+  package_unit text,                     -- 入り数・仕立て単位 (例: m)
+  unit text,                             -- 販売・仕入単位 (例: Roll)
+  origin text,                           -- 原産国 (例: JP, CNなど)
+  notes text,                            -- 備考
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow anonymous read access products" ON products FOR SELECT USING (true);
+CREATE POLICY "Allow anonymous insert access products" ON products FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow anonymous update access products" ON products FOR UPDATE USING (true);
+
+-- 5. 価格・サイズ展開マスター (product_prices) - 子テーブル
+DROP TABLE IF EXISTS product_prices CASCADE;
+CREATE TABLE product_prices (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  item_code text NOT NULL,               -- 当社品番で親と紐付け
+  size text NOT NULL,                    -- サイズ (10mm, S など。サイズ無しの場合は '-')
+  cost_price numeric NOT NULL,           -- 仕入価格
+  cost_currency text DEFAULT 'JPY',      -- 仕入通貨
+  base_sales_price numeric,              -- 基本販売価格（定価的なものがある場合）
+  sales_currency text DEFAULT 'JPY',     -- 販売通貨
+  effective_date date NOT NULL,          -- 価格適用開始日
+  color_exception text,                  -- 例外カラー (特染め、金・銀など。通常は空白)
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE product_prices ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow anonymous read access product_prices" ON product_prices FOR SELECT USING (true);
+CREATE POLICY "Allow anonymous insert access product_prices" ON product_prices FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow anonymous update access product_prices" ON product_prices FOR UPDATE USING (true);
+
+-- 6. 販売先マスター (customers)
+DROP TABLE IF EXISTS customers CASCADE;
+CREATE TABLE customers (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_code text UNIQUE,
+  company_type text,             -- 株式会社、有限会社 など
+  company_type_position text,    -- 前株、後株、なし
+  company_name text NOT NULL,
+  postal_code text,
+  address text,
+  phone text,
+  fax text,
+  email text,
+  contact_person text,
+  payment_terms text,            -- 締日・支払日
+  markup_rate text,              -- 掛け率（手動入力・任意）
+  notes text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow anonymous read access customers" ON customers FOR SELECT USING (true);
+CREATE POLICY "Allow anonymous insert access customers" ON customers FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow anonymous update access customers" ON customers FOR UPDATE USING (true);

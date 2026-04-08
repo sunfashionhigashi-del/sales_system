@@ -1,0 +1,4 @@
+﻿customer_code,company_type,company_type_position,company_name,postal_code,address,phone,fax,email,contact_person,payment_terms,markup_rate,notes
+CUS-001,株式会社,前,東京アパレル,150-0001,東京都渋谷区1-1-1,03-9999-1111,,buyer@tokyo.test.com,鈴木一郎,末日・翌20日,1.8,
+CUS-002,有限会社,後,関西テーラー,542-0001,大阪府大阪市中央区1-2-3,06-8888-2222,,info@kansai.test.com,高橋花子,20日・翌末日,2.0,小口対応可能
+CUS-SFA,,,Sun Fashion America,,,,,,,,現法自動,SFA連携用

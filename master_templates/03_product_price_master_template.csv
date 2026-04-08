@@ -1,0 +1,7 @@
+﻿item_code,size,cost_price,cost_currency,base_sales_price,sales_currency,effective_date,color_exception
+TAPE-001,10mm,150.0,JPY,200.0,JPY,2026-04-01,
+TAPE-001,15mm,180.0,JPY,240.0,JPY,2026-04-01,
+TAPE-001,15mm,250.0,JPY,300.0,JPY,2026-04-01,金・銀
+BTN-001,13mm,10.0,JPY,15.0,JPY,2026-04-01,
+BTN-001,15mm,12.0,JPY,18.0,JPY,2026-04-01,
+LACE-001,-,45.0,JPY,60.0,JPY,2026-04-01,

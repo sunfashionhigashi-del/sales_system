@@ -1,0 +1,13 @@
+Product Columns:
+['自動計算', '都度入力', 'ｻﾝﾌﾟﾙｶｰﾄﾞは\nsheet', '都度入力.1', '都度入力.2', '都度入力.3', '都度入力.4', '都度入力.5', 'mmは小文字\n0×0mmは\n0mm×2と表記', '色情報のみ記入bk, \nwhite等は小文字', 's: sample sheet\nc: sample cut\nhank, box', '価格が変わった場合\nnew priceと記載', 'new priceの\n適用開始日など', '都度入力.6', '都度入力.7']
+
+Order Columns:
+['行番号と\n自動連動', '以下の可能性があり：\nVLOOK用IDと一致する製品\n情報がﾏｽﾀｰに存在しない', '以下の可能性があり：\n色によって価格が違う\nnew priceが存在する', 'Unnamed: 3', 'Unnamed: 4', 'Unnamed: 5', 'Unnamed: 6', 'Unnamed: 7', 'Unnamed: 8', '注意点：\n運賃の場合：Inland freight\n価格調整：Upcharge', '注意点：\n単位まで入力する\nmmは小文字で統一', '注意点：\n色情報のみ記入する\nbk, white等は小文字で統一', '注意点：\n色情報のみ記入する\nbk, white等は小文字で統一.1', 's: sample sheet\nc: sample cut\nhank, boxもここで管理', '注意点：\n価格が変わった場合\nnew priceと記載', '注意点：\nnew priceの\n適用開始日など', 'Unnamed: 16']
+
+Product Sample:
+{'自動計算': 'Code', '都度入力': '仕立て', 'ｻﾝﾌﾟﾙｶｰﾄﾞは\nsheet': nan, '都度入力.1': '販売単位', '都度入力.2': '仕入単価', '都度入力.3': '販売単価', '都度入力.4': '仕入先品番', '都度入力.5': '当社品番', 'mmは小文字\n0×0mmは\n0mm×2と表記': 'サイズ', '色情報のみ記入bk, \nwhite等は小文字': 'Color', 's: sample sheet\nc: sample cut\nhank, box': '備考', '価格が変わった場合\nnew priceと記載': '価格メモ(1)', 'new priceの\n適用開始日など': '価格メモ（2）', '都度入力.6': '混率', '都度入力.7': 'その他必要情報'}
+{'自動計算': '1502-7mm', '都度入力': 30, 'ｻﾝﾌﾟﾙｶｰﾄﾞは\nsheet': 'm', '都度入力.1': 'roll', '都度入力.2': 1110, '都度入力.3': 1388, '都度入力.4': 'SIC-507', '都度入力.5': 1502, 'mmは小文字\n0×0mmは\n0mm×2と表記': '7mm', '色情報のみ記入bk, \nwhite等は小文字': nan, 's: sample sheet\nc: sample cut\nhank, box': nan, '価格が変わった場合\nnew priceと記載': nan, 'new priceの\n適用開始日など': nan, '都度入力.6': nan, '都度入力.7': nan}
+
+Order Sample:
+{'行番号と\n自動連動': nan, '以下の可能性があり：\nVLOOK用IDと一致する製品\n情報がﾏｽﾀｰに存在しない': '自動', '以下の可能性があり：\n色によって価格が違う\nnew priceが存在する': '自動', 'Unnamed: 3': '都度入力', 'Unnamed: 4': '都度入力', 'Unnamed: 5': '都度入力', 'Unnamed: 6': '利益集計参照', 'Unnamed: 7': nan, 'Unnamed: 8': '自動計算', '注意点：\n運賃の場合：Inland freight\n価格調整：Upcharge': '都度入力', '注意点：\n単位まで入力する\nmmは小文字で統一': '都度入力', '注意点：\n色情報のみ記入する\nbk, white等は小文字で統一': '都度入力', '注意点：\n色情報のみ記入する\nbk, white等は小文字で統一.1': '都度入力', 's: sample sheet\nc: sample cut\nhank, boxもここで管理': '都度入力', '注意点：\n価格が変わった場合\nnew priceと記載': '都度入力'}
+{'行番号と\n自動連動': 'ID No.', '以下の可能性があり：\nVLOOK用IDと一致する製品\n情報がﾏｽﾀｰに存在しない': 'ｴﾗｰﾒｯｾｰｼﾞ', '以下の可能性があり：\n色によって価格が違う\nnew priceが存在する': '複数価格\nｱﾗｰﾄ', 'Unnamed: 3': '客先Order\nNumber', 'Unnamed: 4': '当社\n発注番号', 'Unnamed: 5': 'Invoice No.', 'Unnamed: 6': 'Invoice Month', 'Unnamed: 7': '複数価格\n確認用', 'Unnamed: 8': 'VLOOK用 ID', '注意点：\n運賃の場合：Inland freight\n価格調整：Upcharge': 'Art. No.', '注意点：\n単位まで入力する\nmmは小文字で統一': 'Width', '注意点：\n色情報のみ記入する\nbk, white等は小文字で統一': 'Color#\n(INVOICEや発注に反映)', '注意点：\n色情報のみ記入する\nbk, white等は小文字で統一.1': 'Color#\n(VLOOK用IDに反映)', 's: sample sheet\nc: sample cut\nhank, boxもここで管理': '備考2\n(VLOOK用IDに反映)', '注意点：\n価格が変わった場合\nnew priceと記載': '価格メモ(1)\n(VLOOK用IDに反映)'}

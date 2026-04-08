@@ -1,0 +1,17 @@
+Product Columns:
+['Code', '仕立て', 'Unnamed: 2', '販売単位', '仕入単価', '販売単価', '仕入先品番', '当社品番', 'サイズ', 'Color', '備考', '価格メモ(1)', '価格メモ（2）', '混率', 'その他必要情報', 'Unnamed: 15', 'Unnamed: 16']
+
+Order Columns:
+['ID No.', 'ｴﾗｰﾒｯｾｰｼﾞ', '複数価格\nｱﾗｰﾄ', '客先Order\nNumber', '当社\n発注番号', 'Invoice No.', 'Invoice Month', '複数価格\n確認用', 'VLOOK用 ID', 'Art. No.', 'Width', 'Color#\n(INVOICEや発注に反映)', 'Color#\n(VLOOK用IDに反映)', '備考2\n(VLOOK用IDに反映)', '価格メモ(1)\n(VLOOK用IDに反映)', '価格メモ(2)\n(VLOOK用IDに反映)', '販売\n(数量)', '販売\n(単位)', '仕立\n(数量)', '仕立\n(単位)', 'Total Qty', '販売単価', '販売金額', '仕入単価', '仕入金額', '粗利', '仕入先品番', '混率', '粗利率\n(参考)']
+
+Product Sample:
+{'Code': '1502-7mm', '仕立て': 30, 'Unnamed: 2': 'm', '販売単位': 'roll', '仕入単価': 1110, '販売単価': 1388, '仕入先品番': 'SIC-507', '当社品番': 1502, 'サイズ': '7mm'}
+{'Code': '1502-9mm', '仕立て': 30, 'Unnamed: 2': 'm', '販売単位': 'roll', '仕入単価': 1320, '販売単価': 1650, '仕入先品番': 'SIC-507', '当社品番': 1502, 'サイズ': '9mm'}
+{'Code': '1503-S', '仕立て': 30, 'Unnamed: 2': 'm', '販売単位': 'roll', '仕入単価': 1860, '販売単価': 2325, '仕入先品番': 'SIC-560', '当社品番': 1503, 'サイズ': 'S', '混率': 'See-through Piping Tapes / 100% Polyester'}
+
+Order Sample:
+{'ID No.': 1.0, 'Invoice Month': '-', '複数価格\n確認用': '3544-4cords', 'VLOOK用 ID': '3544-4cords', 'Art. No.': 3544, 'Width': '4cords', '販売\n(数量)': 3.0, '販売\n(単位)': 'roll', '仕立\n(数量)': '30', '仕立\n(単位)': 'm'}
+{'ID No.': 2.0, 'Invoice Month': '-', '複数価格\n確認用': '3544-6cords', 'VLOOK用 ID': '3544-6cords', 'Art. No.': 3544, 'Width': '6cords', '販売\n(数量)': 4.0, '販売\n(単位)': 'roll', '仕立\n(数量)': '30', '仕立\n(単位)': 'm'}
+{'ID No.': 3.0, 'Invoice Month': '-', '複数価格\n確認用': '3544-8cords', 'VLOOK用 ID': '3544-8cords', 'Art. No.': 3544, 'Width': '8cords', '販売\n(数量)': 1.0, '販売\n(単位)': 'roll', '仕立\n(数量)': '30', '仕立\n(単位)': 'm'}
+{'ID No.': 4.0, 'Invoice Month': '-', '複数価格\n確認用': '3544-10cords', 'VLOOK用 ID': '3544-10cords', 'Art. No.': 3544, 'Width': '10cords', '販売\n(数量)': 1.0, '販売\n(単位)': 'roll', '仕立\n(数量)': '30', '仕立\n(単位)': 'm'}
+{'ID No.': 5.0, 'Invoice Month': '-', '複数価格\n確認用': '3544-12cords', 'VLOOK用 ID': '3544-12cords', 'Art. No.': 3544, 'Width': '12cords', '販売\n(数量)': 1.0, '販売\n(単位)': 'roll', '仕立\n(数量)': '30', '仕立\n(単位)': 'm'}

@@ -1,0 +1,4 @@
+﻿item_code,supplier_item_code,category,item_name,package_qty,package_unit,unit,origin,notes
+TAPE-001,M-TAPE-88,リボン,サテンリボン,50,m,Roll,JP,基本は定番色のみ
+BTN-001,SR-BUTTON,ボタン,樹脂ボタン,144,個,Gross,CN,1グロス単位での発注が必要
+LACE-001,LC-999,レース,ストレッチレース,100,m,m,JP,切り売り不可

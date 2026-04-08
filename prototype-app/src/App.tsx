@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Scissors, Package, LayoutGrid, Save, Unlock, EyeOff, Undo, Redo, Archive, Ship, Copy, BarChart2, CheckCircle, FileText } from 'lucide-react'
+import { Plus, Scissors, Package, LayoutGrid, Save, Unlock, EyeOff, Undo, Redo, Archive, Ship, Copy, BarChart2, CheckCircle, FileText, Database } from 'lucide-react'
 import GridArea from './components/GridArea'
 import DashboardArea from './components/DashboardArea'
+import MasterViewer from './components/MasterViewer'
 
 function App() {
   const [session, setSession] = useState<any>(null)
@@ -243,13 +244,16 @@ function App() {
          <button onClick={() => setActiveTab('process')} className={`pb-3 font-semibold transition border-b-[3px] -mb-[1px] ${activeTab === 'process' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="セットアップや加工手配中の案件を表示します">加工中</button>
          <button onClick={() => setActiveTab('pending_invoice')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center -mb-[1px] ${activeTab === 'pending_invoice' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="出荷（メーカー発注）済みですが、まだ顧客へ「請求（Invoice発行）」していない案件を表示します"><span className={`w-2 h-2 rounded-full mr-1.5 shadow-inner border border-black/10 ${activeTab === 'pending_invoice' ? 'bg-gray-800' : 'bg-amber-400'}`}></span>未請求</button>
          <button onClick={() => setActiveTab('payment')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center -mb-[1px] ${activeTab === 'payment' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="BL DATE（船積日）以降の、入金確認や予実管理に特化した表示モードに切り替えます"><span className={`w-2 h-2 rounded-full mr-1.5 shadow-inner border border-black/10 ${activeTab === 'payment' ? 'bg-gray-800' : 'bg-green-500'}`}></span>入金状況</button>
-         <button onClick={() => setActiveTab('archived')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center ml-auto -mb-[1px] ${activeTab === 'archived' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="過去に非表示化（アーカイブ化）したデータを閲覧・復元します"><Archive size={14} className="mr-1 mt-0.5" />ｱｰｶｲﾌﾞ</button>
+         <button onClick={() => setActiveTab('master')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center ml-auto -mb-[1px] ${activeTab === 'master' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="マスター管理データの閲覧・修正"><Database size={14} className="mr-1 mt-0.5" />ﾏｽﾀｰ</button>
+         <button onClick={() => setActiveTab('archived')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center ml-4 -mb-[1px] ${activeTab === 'archived' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="過去に非表示化（アーカイブ化）したデータを閲覧・復元します"><Archive size={14} className="mr-1 mt-0.5" />ｱｰｶｲﾌﾞ</button>
       </div>
 
       {/* 4. Main Area (Grid or Dashboard) */}
       <div className="flex-1 w-full overflow-hidden relative">
           {activeTab === 'dashboard' ? (
               <DashboardArea session={session} />
+          ) : activeTab === 'master' ? (
+              <MasterViewer />
           ) : (
               <div className="p-4 pt-4 w-full h-full">
                   <div className="bg-white rounded shadow w-full h-full border border-gray-300 overflow-hidden">

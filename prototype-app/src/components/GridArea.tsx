@@ -6,6 +6,7 @@ import { AllEnterpriseModule } from 'ag-grid-enterprise'
 ModuleRegistry.registerModules([AllCommunityModule, AllEnterpriseModule])
 
 import { supabase } from '../lib/supabase'
+import OrderDetailModal from './OrderDetailModal'
 
 interface GridAreaProps {
   activeTab: string;
@@ -124,6 +125,7 @@ const AG_GRID_LOCALE_JP = {
 const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   const gridRef = useRef<AgGridReact>(null)
   const [rowData, setRowData] = useState<any[]>([])
+  const [selectedRowData, setSelectedRowData] = useState<any>(null)
 
   const [undoStack, setUndoStack] = useState<any[]>([])
   const [redoStack, setRedoStack] = useState<any[]>([])
@@ -806,6 +808,12 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                { headerName: "リンク", field: "link_id", editable: false, width: 100,
                  headerTooltip: "関連行のリンクID（分割等で共通のグループIDが付与）",
                  cellStyle: { color: '#3b82f6', fontWeight: 'bold' } },
+               { headerName: "客先発注No", field: "customer_po", editable: true, width: 110,
+                 headerTooltip: "顧客側での発注番号(PO)" },
+               { headerName: "当社発注No", field: "order_no", editable: true, width: 110,
+                 headerTooltip: "当社の発注番号" },
+               { headerName: "Invoice", field: "invoice_no", editable: true, width: 90,
+                 headerTooltip: "Invoice番号" },
                { headerName: "得意先", field: "customer", editable: true, width: 130, pinned: 'left',
                  headerTooltip: "請求先の顧客名（直接先）" },
                { headerName: "ユーザー", field: "end_user", editable: true, width: 120,
@@ -820,16 +828,20 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                { headerName: "カテゴリ", field: "category", editable: true, width: 100,
                  headerTooltip: "商品カテゴリ",
                  cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['PUテープ', 'リボン', 'レース', 'ボタン', 'パーツ', 'キット/加工品'] } },
-               { headerName: "品番", field: "item_code", editable: true, width: 110,
-                 headerTooltip: "商品コード（品番）。入力でマスタ自動補完" },
-               { headerName: "品名・仕様", field: "item_name", editable: true, width: 160,
-                 headerTooltip: "商品名・仕様詳細" },
-               { headerName: "混率", field: "composition", editable: true, width: 100,
-                 headerTooltip: "素材等の混率（例: PE100%, PU5% 等）" },
+               { headerName: "当社品番", field: "item_code", editable: true, width: 110,
+                 headerTooltip: "当社の管理品番" },
+               { headerName: "仕入先品番", field: "supplier_item_code", editable: true, width: 120,
+                 headerTooltip: "メーカーや仕入先での品番" },
+               { headerName: "品名・仕様", field: "item_name", editable: true, width: 180,
+                 headerTooltip: "商品名・仕様詳細（混率など）" },
                { headerName: "数量", field: "qty", editable: true, width: 75, type: 'numericColumn',
                  headerTooltip: "取引数量" },
                { headerName: "単位", field: "unit", editable: true, width: 65,
-                 headerTooltip: "数量単位（PCS / MTR 等）" },
+                 headerTooltip: "数量単位（roll / pcs 等）" },
+               { headerName: "仕立(数)", field: "package_qty", editable: true, width: 85, type: 'numericColumn',
+                 headerTooltip: "パッケージ（巻・箱）あたりの数量" },
+               { headerName: "仕立(単位)", field: "package_unit", editable: true, width: 85,
+                 headerTooltip: "パッケージあたりの単位（m / bobbin 等）" },
            ]
         },
         { 
@@ -877,15 +889,15 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                  valueGetter: (params: any) => { if (!params.data.qty || !params.data.sales_price) return null; return params.data.qty * params.data.sales_price; },
                  valueFormatter: numFmt,
                  cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
-               { headerName: "[ﾕｰｻﾞｰ]通貨", field: "end_user_currency", editable: true,
+               { headerName: "[ﾕｰｻﾞｰ]通貨", field: "end_user_currency", editable: true, width: 95,
                  headerTooltip: "ユーザー向け末端通貨",
                  cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] },
                  cellStyle: (params: any) => (params.data.customer==='Sun Fashion America' || params.data.customer==='NY Sub') ? {backgroundColor:'#fff7ed'} : {} },
-               { headerName: "[ﾕｰｻﾞｰ]価格", field: "end_user_price", editable: true, type: 'numericColumn',
+               { headerName: "[ﾕｰｻﾞｰ]価格", field: "end_user_price", editable: true, width: 95, type: 'numericColumn',
                  headerTooltip: "エンドユーザー向け末端単価（3社間用）",
                  valueFormatter: numFmt,
                  cellStyle: (params: any) => (params.data.customer==='Sun Fashion America' || params.data.customer==='NY Sub') ? {backgroundColor:'#fff7ed'} : {} },
-               { headerName: "[ﾕｰｻﾞｰ]合計", field: "end_user_total", editable: false, type: 'numericColumn',
+               { headerName: "[ﾕｰｻﾞｰ]合計", field: "end_user_total", editable: false, width: 95, type: 'numericColumn',
                  headerTooltip: "数量 × エンドユーザー単価",
                  valueGetter: (params: any) => { if (!params.data.qty || !params.data.end_user_price) return null; return params.data.qty * params.data.end_user_price; },
                  valueFormatter: numFmt,
@@ -949,17 +961,12 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                { headerName: "見積備考", field: "quote_remarks", editable: true, width: 140,
                  headerTooltip: "見積書に表示させる用件・補足" },
                { headerName: "受注日", field: "order_date", editable: true, width: 95 },
-               { headerName: "顧客発注番号", field: "order_id", editable: true, width: 110,
-                 headerTooltip: "顧客のPO番号を手入力" },
            ]
         },
         { 
            headerName: "5. 発注・生産", 
            children: [
                { headerName: "発注日", field: "po_date", editable: false, width: 90 },
-               { headerName: "発注番号 ※", field: "po_no", editable: false, width: 110,
-                 headerTooltip: "自動採番",
-                 cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
                { headerName: "出荷予定", field: "factory_date", editable: true, width: 95 },
                { headerName: "発注備考", field: "po_remarks", editable: true, width: 140,
                  headerTooltip: "発注書に表示させる用件・補足" },
@@ -972,9 +979,6 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                  headerTooltip: "船積日（実勢為替発動スイッチ）",
                  cellStyle: { backgroundColor: '#eff6ff' } },
                { headerName: "請求書発行日", field: "invoice_date", editable: false, width: 100 },
-               { headerName: "請求番号 ※", field: "invoice_no", editable: false, width: 120,
-                 headerTooltip: "自動採番",
-                 cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b' } },
                { headerName: "支払いTERM", field: "payment_term", editable: true, width: 100 },
                { headerName: "入金日", field: "payment_date", editable: true, width: 95 },
                { headerName: "請求備考", field: "invoice_remarks", editable: true, width: 140,
@@ -1096,6 +1100,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
       <AgGridReact
         ref={gridRef}
         rowData={rowData.length === 0 ? undefined : rowData} 
+        onRowDoubleClicked={(e) => setSelectedRowData(e.data)}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
         rowSelection="multiple"
@@ -1109,6 +1114,23 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         localeText={AG_GRID_LOCALE_JP}
         autoSizeStrategy={{ type: 'fitCellContents' }}
       />
+      {selectedRowData && (
+         <OrderDetailModal 
+            data={selectedRowData} 
+            onClose={() => setSelectedRowData(null)} 
+            onSave={(updatedData) => {
+                captureSnapshot()
+                const rowNode = gridRef.current?.api.getRowNode(updatedData.id)
+                if (rowNode) {
+                    rowNode.updateData(updatedData)
+                } else {
+                    gridRef.current?.api.applyTransaction({ update: [updatedData] })
+                }
+                gridRef.current?.api.onFilterChanged()
+                setSelectedRowData(null)
+            }} 
+         />
+      )}
     </div>
   )
 })
