@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   comments text,
   system_log text,
   locked boolean DEFAULT false,
+  archived boolean DEFAULT false,
   revision integer DEFAULT 0,
   
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -203,7 +204,7 @@ CREATE POLICY "Allow anonymous update access customers" ON customers FOR UPDATE 
 DROP TABLE IF EXISTS audit_logs CASCADE;
 CREATE TABLE audit_logs (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    order_id uuid REFERENCES order_items(id) ON DELETE CASCADE,
+    order_id uuid,                           -- 外部キー制約を外す（DELETE時のログ保存のため）
     action text NOT NULL,                    -- INSERT, UPDATE, DELETE
     user_name text DEFAULT 'system',         -- 操作ユーザー（Supabaseのauth.uid()やAPIリクエストから）
     changes_json jsonb,                      -- 変更前後の差異などを記録
