@@ -162,7 +162,7 @@ const OrderDetailModal = ({ data, onClose, onSave }: OrderDetailModalProps) => {
                   <select {...register('status')} className={inputStyle}>
                     <option value="見積中">見積中</option>
                     <option value="発注待">発注待</option>
-                    <option value="発注済">発注済</option>
+                    <option value="未請求">未請求</option>
                     <option value="先行発注">先行発注</option>
                     <option value="加工中">加工中</option>
                     <option value="材料充当">材料充当</option>

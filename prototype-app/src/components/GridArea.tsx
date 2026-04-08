@@ -31,7 +31,7 @@ const StatusBadgeRenderer = (params: any) => {
   const styleMap: Record<string, { color: string, indicator: string }> = {
     '見積中':   { color: '#2563eb', indicator: '#93c5fd' }, 
     '発注待':   { color: '#dc2626', indicator: '#fca5a5' }, 
-    '発注済':   { color: '#059669', indicator: '#6ee7b7' }, 
+    '未請求':   { color: '#059669', indicator: '#6ee7b7' }, 
     '先行発注': { color: '#d97706', indicator: '#fcd34d' }, 
     '加工中':   { color: '#4f46e5', indicator: '#a5b4fc' }, 
     '材料充当': { color: '#64748b', indicator: '#cbd5e1' }, 
@@ -349,13 +349,13 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
             const shortDate = new Date().toISOString().split('T')[0]
             const prevInv = node.data.invoice_no || "不明"
             
-            // ロジック点検: 請求済をロック解除した場合は「見積中」ではなく「発注済」に戻す。
+            // ロジック点検: 請求済をロック解除した場合は「見積中」ではなく「未請求」に戻す。
             // そこで修正して再度Invoiceを発行するために Revision をカウントアップする。
             let newStatus = node.data.status;
             let currentRev = node.data.revision || 0;
             
             if (node.data.status === '請求済') {
-                newStatus = '発注済';
+                newStatus = '未請求';
                 currentRev += 1; // Unlock時に改版カウントを上げる
             }
 
@@ -470,7 +470,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
        const selected = gridRef.current?.api.getSelectedNodes()
        if (!selected || selected.length === 0) { alert("受注登録する内容（見積中など）を選択してください。"); return }
        
-       // 論理ガード：見積中、先行発注以外は受注処理できない（すでに発注済など）
+       // 論理ガード：見積中、先行発注以外は受注処理できない（すでに未請求など）
        const invalid = selected.filter(node => !['見積中', '先行発注'].includes(node.data.status));
        if (invalid.length > 0) {
            alert("【エラー】選択された行の中に、受注登録ができないステータスが含まれています。\n※受注登録できるのは「見積中」または「先行発注」のデータのみです。");
@@ -478,9 +478,9 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
        }
 
        const updates = selected.map(node => {
-           // ロジック点検: 見積中なら「発注待」へ。既に先行発注済なら「発注済」へスライド。
+           // ロジック点検: 見積中なら「発注待」へ。既に先行未請求なら「未請求」へスライド。
            let newStatus = '発注待';
-           if (node.data.status === '先行発注') newStatus = '発注済';
+           if (node.data.status === '先行発注') newStatus = '未請求';
            
            return {
                ...node.data, 
@@ -502,12 +502,12 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
        const selected = gridRef.current?.api.getSelectedNodes()
        if (!selected || selected.length === 0) { alert("発注書を生成する行を選択してください。"); return }
 
-       // 論理ガード：すでに発注済みのものや、請求済のものは発注書出し直しの意味がない
+       // 論理ガード：すでに未請求みのものや、請求済のものは発注書出し直しの意味がない
        const invalid = selected.filter(node => 
-           ['発注済', '請求済', 'キャンセル', '材料充当'].includes(node.data.status)
+           ['未請求', '請求済', 'キャンセル', '材料充当'].includes(node.data.status)
        );
        if (invalid.length > 0) {
-           alert("【エラー】選択された行の中に、既に発注済み、または発注不可能なステータスのデータが含まれています。");
+           alert("【エラー】選択された行の中に、既に未請求み、または発注不可能なステータスのデータが含まれています。");
            return;
        }
 
@@ -518,7 +518,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
           if (!baseNo || baseNo.trim() === '' || baseNo === '-') {
               baseNo = `PO-${new Date().toISOString().split('T')[0].replace(/-/g, '').slice(2)}-${Math.floor(100 + Math.random()*900)}`
           } else {
-              // 既に発注済の再出し（ソフト改版）
+              // 既に未請求の再出し（ソフト改版）
               let rev = 0;
               if (baseNo.includes('-Rev')) {
                   const parts = baseNo.split('-Rev');
@@ -541,7 +541,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
               }
           }
           
-          let newStatus = '発注済';
+          let newStatus = '未請求';
           if (node.data.status === '見積中') newStatus = '先行発注';
           if (node.data.status === '加工中') newStatus = '加工中'; 
 
@@ -662,7 +662,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
           if (activeTab === 'pre_order') query = query.eq('status', '先行発注');
           if (activeTab === 'process') query = query.in('status', ['加工中', '材料充当']);
           if (activeTab === 'pending_invoice') {
-              query = query.in('status', ['発注済', '加工中']).is('invoice_no', null);
+              query = query.in('status', ['未請求', '加工中']).is('invoice_no', null);
           }
       }
       return query;
@@ -748,7 +748,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         if (activeTab === 'alert_po') return node.data.status === '発注待';
         if (activeTab === 'pre_order') return node.data.status === '先行発注';
         if (activeTab === 'process') return node.data.status === '加工中' || node.data.status === '材料充当';
-        if (activeTab === 'pending_invoice') return (node.data.status === '発注済' || node.data.status === '加工中') && !node.data.invoice_no;
+        if (activeTab === 'pending_invoice') return (node.data.status === '未請求' || node.data.status === '加工中') && !node.data.invoice_no;
         return true; 
      }
   }, [activeTab, session])
@@ -841,7 +841,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
     if (params.data.locked) return { ...base, backgroundColor: '#f8fafc', color: '#94a3b8' };
     if (params.data.status === '材料充当') return { ...base, backgroundColor: '#e2e8f0', color: '#64748b', fontStyle: 'italic' };
     if (params.data.status === '発注待') return { ...base, backgroundColor: '#fee2e2', color: '#b91c1c', fontWeight: '700' };
-    if (params.data.status === '発注済') return { ...base, color: '#047857' };
+    if (params.data.status === '未請求') return { ...base, color: '#047857' };
     if (params.data.status === '加工中') return { ...base, backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: '700' };
     return base;
   }
@@ -875,12 +875,12 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
            children: [
                { headerName: "", field: "selected", checkboxSelection: true, headerCheckboxSelection: true, width: 40, pinned: 'left', suppressHeaderMenuButton: true, filter: false, floatingFilter: false, sortable: false },
                { headerName: "ｽﾃｰﾀｽ", field: "status", editable: true, width: 88, pinned: 'left',
-                 headerTooltip: "取引ステータス（見積中 / 発注待 / 発注済 / 先行発注 / 加工中 / 材料充当 / 請求済 / キャンセル）",
+                 headerTooltip: "取引ステータス（見積中 / 発注待 / 未請求 / 先行発注 / 加工中 / 材料充当 / 請求済 / キャンセル）",
                  cellRenderer: StatusBadgeRenderer,
                  cellEditor: 'agSelectCellEditor', 
-                 cellEditorParams: { values: ['見積中', '発注待', '発注済', '先行発注', '加工中', '材料充当', '請求済', 'キャンセル'] },
+                 cellEditorParams: { values: ['見積中', '発注待', '未請求', '先行発注', '加工中', '材料充当', '請求済', 'キャンセル'] },
                  valueSetter: (params: any) => {
-                     const allowed = ['見積中', '発注待', '発注済', '先行発注', '加工中', '材料充当', '請求済', 'キャンセル']
+                     const allowed = ['見積中', '発注待', '未請求', '先行発注', '加工中', '材料充当', '請求済', 'キャンセル']
                      if (allowed.includes(params.newValue)) {
                          params.data.status = params.newValue
                          return true

@@ -22,7 +22,7 @@ export default function DashboardArea({ session, onTabChange }: { session: any, 
                 }
 
                 // 「売上・進行中」サマリー用
-                const activeOrders = myData.filter((d: any) => ['見積中', '発注待', '先行発注', '加工中', '発注済', '請求済'].includes(d.status)).length
+                const activeOrders = myData.filter((d: any) => ['見積中', '発注待', '先行発注', '加工中', '未請求', '請求済'].includes(d.status)).length
                 const shipping = myData.filter((d: any) => d.factory_date && d.factory_date !== "").length
                 
                 let profit = 0
