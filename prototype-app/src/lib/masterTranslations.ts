@@ -31,6 +31,32 @@ export const masterColMap: Record<string, string> = {
   color_exception: '例外カラー',
   created_at: '作成日時',
   updated_at: '更新日時'
+  ,
+  fiscal_year: '年度',
+  currency: '通貨',
+  budget_rate: '採算確認用レート',
+  rate_type: 'レート種別',
+  rate_date: '適用日',
+  source_date: '公表日',
+  source_name: '取得元',
+  ttb_rate: 'TTB',
+  tts_rate: 'TTS',
+  base_ttb_rate: '基準TTB',
+  base_tts_rate: '基準TTS',
+  preferential_ttb_adjustment: 'TTB優遇幅',
+  preferential_tts_adjustment: 'TTS優遇幅',
+  applied_ttb_rate: '適用TTB',
+  applied_tts_rate: '適用TTS',
+  is_business_day: '営業日',
+  previous_business_date: '前営業日',
+  fetched_at: '取得日時',
+  source_url: '取得URL',
+  effective_from: '適用開始日',
+  effective_to: '適用終了日',
+  adjustment_name: '優遇設定名',
+  priority: '優先度',
+  is_active: '有効',
+  memo: 'メモ'
 };
 
 export const translateMasterCol = (key: string): string => {

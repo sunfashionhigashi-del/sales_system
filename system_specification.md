@@ -98,3 +98,11 @@ If any logic, UI, or architecture is updated in the codebase during a session, t
 - **対象:** アプリシェル、ヘッダー、コマンドバー、タブ、作業カード、採算ビュー切替、案件サマリー、AG-Gridテーマ。
 - **内容:** 半透明レイヤー、薄い境界線、控えめな影、落ち着いたグレー/ネイビー基調、AG-Gridヘッダー・選択行・フォーカス枠の整理を追加。
 - **影響範囲:** CSSと表示クラスのみ。保存処理、データ構造、集計ロジック、帳票ロジックには変更なし。
+
+## 14. 2026-05-03 為替管理方針
+- **年度採算為替:** 毎年度、管理者が年間の採算確認用レートを `annual_exchange_rates` に設定する。これは見積・受注前後の暫定採算確認に使う。
+- **実為替確定:** 出荷後は `BL DATE` を基準に、MUFG公表為替レートを使って採算を確定する。販売換算は `TTB`、仕入換算は `TTS` を使う。
+- **休日処理:** `BL DATE` が銀行休業日などで公表レートが存在しない場合は、前営業日のレートを適用する。`mufg_exchange_rates.previous_business_date` に実際に参照した営業日を保存する。
+- **優遇レート:** MUFG基準レートに対する優遇幅は `exchange_rate_adjustments` で後から設定できるようにする。販売先・仕入先・通貨・期間・優先度を持たせ、適用TTB/TTSを算出する。
+- **自動取得:** MUFGの公表為替ページ（例: https://www.bk.mufg.jp/ippan/kinri/list_j/kinri/kawase.html ）を毎営業日または毎日ジョブで取得し、`mufg_exchange_rates` に蓄積する設計とする。実装はSupabase Edge Function + スケジュール実行を想定する。
+- **今回の追加:** マスター画面に `年度採算為替`、`MUFG実為替`、`優遇レート` の管理タブを追加し、DB追加用SQL `prototype-app/exchange_rate_schema.sql` を作成した。

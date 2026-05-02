@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { AlertCircle, CheckCircle, Loader2, Truck, Package, Tag, Building, Plus, Trash } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2, Truck, Package, Tag, Building, Plus, Trash, CircleDollarSign, Landmark, Percent } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import MasterDetailModal from './MasterDetailModal';
@@ -185,6 +185,27 @@ const MasterViewer = () => {
         >
           <Building size={16} className="mr-2" />
           販売先マスター
+        </button>
+        <button
+          onClick={() => setActiveMaster('annual_exchange_rates')}
+          className={`px-4 py-3 font-bold border-b-[3px] flex items-center ml-4 -mb-[1px] transition ${activeMaster === 'annual_exchange_rates' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <CircleDollarSign size={16} className="mr-2" />
+          年度採算為替
+        </button>
+        <button
+          onClick={() => setActiveMaster('mufg_exchange_rates')}
+          className={`px-4 py-3 font-bold border-b-[3px] flex items-center ml-4 -mb-[1px] transition ${activeMaster === 'mufg_exchange_rates' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <Landmark size={16} className="mr-2" />
+          MUFG実為替
+        </button>
+        <button
+          onClick={() => setActiveMaster('exchange_rate_adjustments')}
+          className={`px-4 py-3 font-bold border-b-[3px] flex items-center ml-4 -mb-[1px] transition ${activeMaster === 'exchange_rate_adjustments' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <Percent size={16} className="mr-2" />
+          優遇レート
         </button>
       </div>
 
