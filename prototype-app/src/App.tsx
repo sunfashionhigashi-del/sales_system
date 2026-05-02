@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Scissors, Package, LayoutGrid, Save, Unlock, EyeOff, Undo, Redo, Archive, Ship, Copy, BarChart2, CheckCircle, FileText, Database, Edit } from 'lucide-react'
+import { Plus, Scissors, Package, LayoutGrid, Save, Unlock, EyeOff, Undo, Redo, Archive, Ship, Copy, BarChart2, CheckCircle, FileText, Database, Edit, ChevronDown, Maximize2, Minimize2, MoreHorizontal } from 'lucide-react'
 import GridArea from './components/GridArea'
 import DashboardArea from './components/DashboardArea'
 import MasterViewer from './components/MasterViewer'
@@ -8,6 +8,8 @@ function App() {
   const [session, setSession] = useState<any>(null)
   const [showLogin, setShowLogin] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard') // Phase 1仕様: デフォルトはダッシュボード
+  const [openMenu, setOpenMenu] = useState<'row' | 'docs' | null>(null)
+  const [isFocusMode, setIsFocusMode] = useState(false)
   const gridAreaRef = useRef<any>(null)
 
   useEffect(() => {
@@ -85,6 +87,11 @@ function App() {
      setShowLogin(true)
   }
 
+  const runGridAction = (action: () => void) => {
+     action()
+     setOpenMenu(null)
+  }
+
   // [FIXED] 確定済みUI: ショートカットキーは視認性重視で必ず黒背景・白文字とする (APP_SPEC参照)
   const Kbd = ({ children }: { children: string }) => (
     <span className="ml-1.5 text-[10px] font-mono bg-gray-700 text-gray-200 rounded px-1.5 py-0.5 leading-none tracking-tight border border-gray-600 shadow-inner">{children}</span>
@@ -150,90 +157,76 @@ function App() {
         </div>
       </header>
 
-      {/* [FIXED] 確定済みUI: ツールバーはSaaSピル型（文字なし・境界線で区切る）とし、勝手に旧仕様（縦棒等）へ書き換えないこと */}
-      {/* 2. Primary Toolbars (World Class Modern UI) */}
-      <div className="flex flex-col shrink-0 bg-white border-b border-gray-200 shadow-sm relative z-0">
-        
-        {/* 上段：主要ワークフローと保存アクション */}
-        <div className="px-6 py-3 flex items-center justify-between gap-3 overflow-x-auto">
-           
-           <div className="flex items-center gap-4 flex-wrap min-w-0">
-              
-              {/* Undo / Redo グループ */}
-              <div className="flex items-center bg-white rounded-md border border-gray-300 shadow-sm p-0.5">
-                 <button onClick={() => gridAreaRef.current?.customUndo()} className="p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800 rounded transition" title="元に戻す (Ctrl+Z)"><Undo size={15} /></button>
-                 <div className="w-[1px] h-4 bg-gray-200 mx-0.5"></div>
-                 <button onClick={() => gridAreaRef.current?.customRedo()} className="p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800 rounded transition" title="やり直す (Ctrl+Y)"><Redo size={15} /></button>
-              </div>
+      {/* 2. Compact Command Bar */}
+      {!isFocusMode && (
+        <div className="shrink-0 bg-white border-b border-gray-200 shadow-sm px-5 py-2.5 flex items-center justify-between gap-3 overflow-visible relative z-20">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center bg-white rounded-md border border-gray-300 shadow-sm p-0.5">
+              <button onClick={() => gridAreaRef.current?.customUndo()} className="p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800 rounded transition" title="元に戻す (Ctrl+Z)"><Undo size={15} /></button>
+              <div className="w-[1px] h-4 bg-gray-200 mx-0.5"></div>
+              <button onClick={() => gridAreaRef.current?.customRedo()} className="p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800 rounded transition" title="やり直す (Ctrl+Y)"><Redo size={15} /></button>
+            </div>
 
-              {/* 行の追加と進行（ワークフロー） グループ */}
-              <div className="flex items-center bg-white rounded-md border border-gray-300 shadow-sm p-0.5">
-                 <button onClick={() => gridAreaRef.current?.addRow('見積中')} className="flex items-center px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-gray-100 hover:text-gray-900 rounded transition" title="新しい空行（見積中）を追加します"><Plus size={14} className="mr-1.5 opacity-70"/>見積追加<Kbd>Alt+Q</Kbd></button>
-                 <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
-                 <button onClick={() => gridAreaRef.current?.addRow('発注待')} className="flex items-center px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-gray-100 hover:text-gray-900 rounded transition" title="新しい受注行（発注待）を追加します"><Plus size={14} className="mr-1.5 opacity-70"/>受注追加<Kbd>Alt+O</Kbd></button>
-                 <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
-                 <button onClick={() => gridAreaRef.current?.addRow('先行発注')} className="flex items-center px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-gray-100 hover:text-gray-900 rounded transition" title="新しい先行発注の行を追加します"><Plus size={14} className="mr-1.5 opacity-70"/>発注追加<Kbd>Alt+P</Kbd></button>
-                 
-                 <div className="w-[1px] h-5 bg-gray-300 mx-2"></div>
-                 
-                 <button onClick={() => gridAreaRef.current?.registerOrder()} className="flex items-center px-3 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded transition" title="選択した見積を「受注済」として確定します">
-                    <CheckCircle size={15} className="mr-1.5 text-gray-500" />受注登録<Kbd>Alt+R</Kbd>
-                 </button>
-              </div>
+            <div className="flex items-center bg-white rounded-md border border-gray-300 shadow-sm p-0.5">
+              <button onClick={() => gridAreaRef.current?.addRow('見積中')} className="flex items-center px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-gray-100 hover:text-gray-900 rounded transition" title="新しい空行（見積中）を追加します"><Plus size={14} className="mr-1.5 opacity-70"/>見積追加<Kbd>Alt+Q</Kbd></button>
+              <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
+              <button onClick={() => gridAreaRef.current?.registerOrder()} className="flex items-center px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-gray-100 hover:text-gray-900 rounded transition" title="選択した見積を受注として確定します"><CheckCircle size={15} className="mr-1.5 text-gray-500" />受注登録<Kbd>Alt+R</Kbd></button>
+              <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
+              <button onClick={() => gridAreaRef.current?.openDetailModal()} className="flex items-center px-3 py-1.5 text-sm font-bold text-blue-700 hover:bg-blue-50 rounded transition" title="選択した行の詳細入力画面を開く"><Edit size={15} className="mr-1.5 text-blue-500"/>詳細編集</button>
+            </div>
 
-              {/* HERO: クラウドに保存ボタン (左に移動) */}
-              <button onClick={() => gridAreaRef.current?.saveData()} className="group flex items-center px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow text-sm font-bold transition-all focus:ring-4 focus:ring-blue-100 ml-2 flex-shrink-0">
-                 <Save size={16} className="mr-2 group-hover:scale-110 transition-transform" />保存
-                 <span className="ml-2 px-1.5 py-0.5 bg-blue-800 rounded font-mono text-[10px]">Ctrl+S</span>
-              </button>
+            <div className="relative">
+              <button onClick={() => setOpenMenu(openMenu === 'row' ? null : 'row')} className="flex items-center px-3 py-2 bg-white border border-slate-300 rounded-md hover:bg-slate-50 text-slate-700 text-sm font-bold transition shadow-sm" title="複製、分割、加工キットなど"><MoreHorizontal size={16} className="mr-1.5 text-slate-500"/>選択行<ChevronDown size={14} className="ml-1.5 text-slate-400"/></button>
+              {openMenu === 'row' && (
+                <div className="absolute left-0 top-[calc(100%+6px)] w-56 bg-white border border-slate-200 rounded-md shadow-xl z-50 p-1.5">
+                  <button onClick={() => runGridAction(() => gridAreaRef.current?.addRow('発注待'))} className="w-full flex items-center px-3 py-2 rounded hover:bg-slate-50 text-sm font-semibold text-slate-700"><Plus size={14} className="mr-2 text-slate-500"/>受注追加<Kbd>Alt+O</Kbd></button>
+                  <button onClick={() => runGridAction(() => gridAreaRef.current?.addRow('先行発注'))} className="w-full flex items-center px-3 py-2 rounded hover:bg-slate-50 text-sm font-semibold text-slate-700"><Plus size={14} className="mr-2 text-slate-500"/>発注追加<Kbd>Alt+P</Kbd></button>
+                  <div className="my-1 border-t border-slate-100"></div>
+                  <button onClick={() => runGridAction(() => gridAreaRef.current?.duplicateRow())} className="w-full flex items-center px-3 py-2 rounded hover:bg-slate-50 text-sm font-semibold text-slate-700"><Copy size={14} className="mr-2 text-slate-500"/>複製<Kbd>Alt+C</Kbd></button>
+                  <button onClick={() => runGridAction(() => gridAreaRef.current?.splitRow())} className="w-full flex items-center px-3 py-2 rounded hover:bg-slate-50 text-sm font-semibold text-slate-700"><Scissors size={14} className="mr-2 text-slate-500"/>分割<Kbd>Alt+D</Kbd></button>
+                  <button onClick={() => runGridAction(() => gridAreaRef.current?.kitRows())} className="w-full flex items-center px-3 py-2 rounded hover:bg-slate-50 text-sm font-semibold text-slate-700"><Package size={14} className="mr-2 text-slate-500"/>加工キット<Kbd>Alt+K</Kbd></button>
+                  <div className="my-1 border-t border-slate-100"></div>
+                  <button onClick={() => runGridAction(() => gridAreaRef.current?.unlockRow())} className="w-full flex items-center px-3 py-2 rounded hover:bg-amber-50 hover:text-amber-800 text-sm font-semibold text-slate-700"><Unlock size={14} className="mr-2 text-slate-500"/>ロック解除<Kbd>Alt+U</Kbd></button>
+                  <button onClick={() => runGridAction(() => gridAreaRef.current?.archiveSelected())} className="w-full flex items-center px-3 py-2 rounded hover:bg-slate-50 text-sm font-semibold text-slate-700"><EyeOff size={14} className="mr-2 text-slate-500"/>非表示<Kbd>Alt+H</Kbd></button>
+                  {activeTab === 'archived' && <button onClick={() => runGridAction(() => gridAreaRef.current?.restoreSelected())} className="w-full flex items-center px-3 py-2 rounded hover:bg-slate-50 text-sm font-semibold text-slate-700"><Archive size={14} className="mr-2 text-slate-500"/>復元</button>}
+                </div>
+              )}
+            </div>
 
-           </div>
-           
-           <div></div>
-
-        </div>
-
-        {/* 下段：サブアクション（行の個別操作と書類出力） */}
-        <div className="px-6 py-2 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
-          
-          {/* [FIXED] 確定済みUI: 選択行の操作グループ（Kbd付き） */}
-          <div className="flex items-center gap-1.5">
-             <span className="font-bold text-slate-500 tracking-wider mr-2 text-[11px] bg-slate-200/50 px-2 py-0.5 rounded-full">選択行の操作</span>
-             
-             <button onClick={() => gridAreaRef.current?.openDetailModal()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-blue-50 text-blue-700 font-medium transition shadow-sm" title="選択した行の詳細入力画面を開く"><Edit size={13} className="mr-1.5 text-blue-500"/>詳細編集</button>
-             <button onClick={() => gridAreaRef.current?.duplicateRow()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-100 text-slate-700 font-medium transition shadow-sm" title="選択した行を複製して新しい行を作成"><Copy size={13} className="mr-1.5 text-slate-500"/>複製<Kbd>Alt+C</Kbd></button>
-             <button onClick={() => gridAreaRef.current?.splitRow()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-100 text-slate-700 font-medium transition shadow-sm" title="選択した行の数量を分割して新しい行を派生"><Scissors size={13} className="mr-1.5 text-slate-500"/>分割<Kbd>Alt+D</Kbd></button>
-             <button onClick={() => gridAreaRef.current?.kitRows()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-100 text-slate-700 font-medium transition shadow-sm" title="複数の行をまたいで加工セット品を生成"><Package size={13} className="mr-1.5 text-slate-500"/>加工キット<Kbd>Alt+K</Kbd></button>
-             
-             <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
-             
-             {/* 黄ベタ塗りをやめ、ホバー時のみ僅かな色気が出るニュートラルなロック解除ボタン */}
-             <button onClick={() => gridAreaRef.current?.unlockRow()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-800 rounded text-slate-700 font-medium transition shadow-sm" title="請求済等のロック行を無理やり編集可能状態に戻す">
-                 <Unlock size={13} className="mr-1.5 text-slate-400 group-hover:text-amber-500"/>ロック解除<Kbd>Alt+U</Kbd>
-             </button>
-             <button onClick={() => gridAreaRef.current?.archiveSelected()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-100 rounded text-slate-700 font-medium transition shadow-sm" title="選択行をアーカイブ（非表示）状態にする">
-                 <EyeOff size={13} className="mr-1.5 text-slate-400"/>非表示<Kbd>Del</Kbd>
-             </button>
-             {activeTab === 'archived' && (
-                 <button onClick={() => gridAreaRef.current?.restoreSelected()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded text-slate-700 font-medium transition shadow-sm" title="非表示の行を元の画面へ復元させる">
-                     <Archive size={13} className="mr-1.5 text-slate-500"/>復元
-                 </button>
-             )}
+            <div className="relative">
+              <button onClick={() => setOpenMenu(openMenu === 'docs' ? null : 'docs')} className="flex items-center px-3 py-2 bg-white border border-slate-300 rounded-md hover:bg-slate-50 text-slate-700 text-sm font-bold transition shadow-sm" title="見積書、Sales Note、発注書、Invoice"><FileText size={15} className="mr-1.5 text-slate-500"/>帳票<ChevronDown size={14} className="ml-1.5 text-slate-400"/></button>
+              {openMenu === 'docs' && (
+                <div className="absolute left-0 top-[calc(100%+6px)] w-56 bg-white border border-slate-200 rounded-md shadow-xl z-50 p-1.5">
+                  <button onClick={() => runGridAction(() => gridAreaRef.current?.generateEstimate())} className="w-full flex items-center px-3 py-2 rounded hover:bg-blue-50 hover:text-blue-700 text-sm font-semibold text-slate-700"><FileText size={14} className="mr-2 text-slate-500"/>見積書</button>
+                  <button onClick={() => runGridAction(() => gridAreaRef.current?.generateSalesNote())} className="w-full flex items-center px-3 py-2 rounded hover:bg-blue-50 hover:text-blue-700 text-sm font-semibold text-slate-700"><FileText size={14} className="mr-2 text-slate-500"/>Sales Note</button>
+                  <button onClick={() => runGridAction(() => gridAreaRef.current?.generatePO())} className="w-full flex items-center px-3 py-2 rounded hover:bg-blue-50 hover:text-blue-700 text-sm font-semibold text-slate-700"><FileText size={14} className="mr-2 text-slate-500"/>発注書</button>
+                  <button onClick={() => runGridAction(() => gridAreaRef.current?.generateInvoice())} className="w-full flex items-center px-3 py-2 rounded hover:bg-blue-50 hover:text-blue-700 text-sm font-semibold text-slate-700"><FileText size={14} className="mr-2 text-slate-500"/>Invoice</button>
+                  <div className="my-1 border-t border-slate-100"></div>
+                  <div className="flex items-center px-3 py-2 text-sm font-semibold text-slate-400"><FileText size={14} className="mr-2 text-slate-300"/>Proforma<span className="ml-auto rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-400">準備中</span></div>
+                  <div className="flex items-center px-3 py-2 text-sm font-semibold text-slate-400"><FileText size={14} className="mr-2 text-slate-300"/>Packing List<span className="ml-auto rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-400">準備中</span></div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* ドキュメントエクスポート */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-             <span className="font-bold text-slate-400 tracking-widest mr-2 text-[10px]">EXPORT (Phase 3)</span>
-             <button onClick={() => gridAreaRef.current?.generateEstimate()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-medium transition shadow-sm" title="選択した行からExcel見積書を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>見積書</button>
-             <button onClick={() => gridAreaRef.current?.generateSalesNote()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-medium transition shadow-sm" title="受注確定済みの行から社内用 Sales Note を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>Sales Note</button>
-             <button onClick={() => gridAreaRef.current?.generatePO()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-medium transition shadow-sm" title="発注待の行からメーカー向け PO (Purchasing Order) を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>発注書</button>
-             <button onClick={() => gridAreaRef.current?.generateInvoice()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-medium transition shadow-sm" title="出荷済みの行から顧客向け Invoice を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>Invoice</button>
-             
-             <button disabled className="flex items-center px-3 py-1.5 bg-slate-100 border border-slate-200 rounded text-slate-400 font-medium shadow-sm cursor-not-allowed ml-1" title="Phase 3で実装予定です"><FileText size={13} className="mr-1.5 text-slate-300"/>Proforma<span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">準備中</span></button>
-             <button disabled className="flex items-center px-3 py-1.5 bg-slate-100 border border-slate-200 rounded text-slate-400 font-medium shadow-sm cursor-not-allowed" title="Phase 3で実装予定です"><FileText size={13} className="mr-1.5 text-slate-300"/>Packing List<span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">準備中</span></button>
-           </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => setIsFocusMode(true)} className="flex items-center px-3 py-2 bg-white border border-slate-300 rounded-md hover:bg-slate-50 text-slate-700 text-sm font-bold transition shadow-sm" title="ツールバーを畳んで明細を広く表示します"><Maximize2 size={15} className="mr-1.5 text-slate-500"/>明細を広く</button>
+            <button onClick={() => gridAreaRef.current?.saveData()} className="group flex items-center px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow text-sm font-bold transition-all focus:ring-4 focus:ring-blue-100">
+              <Save size={16} className="mr-2 group-hover:scale-110 transition-transform" />保存
+              <span className="ml-2 px-1.5 py-0.5 bg-blue-800 rounded font-mono text-[10px]">Ctrl+S</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {isFocusMode && (
+        <div className="shrink-0 bg-blue-50 border-b border-blue-100 px-5 py-1.5 flex items-center justify-between text-xs text-blue-800">
+          <span className="font-bold">明細集中モード</span>
+          <button onClick={() => setIsFocusMode(false)} className="flex items-center rounded border border-blue-200 bg-white px-2.5 py-1 font-bold text-blue-700 hover:bg-blue-100">
+            <Minimize2 size={13} className="mr-1.5" />操作バーを表示
+          </button>
+        </div>
+      )}
 
       {/* 3. Task Tabs (グレー背景に溶け込むタブ) */}
       <div className="flex space-x-6 border-b border-gray-300 px-8 pt-4 bg-gray-100 text-sm shrink-0 overflow-x-auto whitespace-nowrap">
