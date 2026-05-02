@@ -1360,9 +1360,9 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
 
   return (
     <div className={`ag-theme-alpine w-full h-full text-sm relative flex flex-col ${activeFilterCount > 0 ? 'ag-filtering-active' : ''}`}>
-      <div className="shrink-0 border-b border-slate-200 bg-white/95 px-3 py-2 shadow-sm">
+      <div className="grid-control-strip shrink-0 px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-md border border-slate-200 bg-slate-50 p-0.5">
+          <div className="view-switch flex items-center rounded-md p-0.5">
             {[
               { id: 'entry', label: '採算入力' },
               { id: 'margin', label: '採算詳細' },
@@ -1373,13 +1373,13 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                 key={mode.id}
                 type="button"
                 onClick={() => setGridViewMode(mode.id as 'entry' | 'margin' | 'sfa' | 'all')}
-                className={`h-7 rounded px-3 text-xs font-bold transition ${gridViewMode === mode.id ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white hover:text-slate-900'}`}
+                className={`h-7 rounded px-3 text-xs font-bold transition ${gridViewMode === mode.id ? 'is-active text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 {mode.label}
               </button>
             ))}
           </div>
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+          <div className="summary-ribbon flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-3 py-1.5 text-xs text-slate-600">
             {dealSummary.rows > 0 ? (
               <>
                 <span className="font-bold text-slate-900">{dealSummary.key ? `案件 ${dealSummary.key}` : '選択行'}</span>

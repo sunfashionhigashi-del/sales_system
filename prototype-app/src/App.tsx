@@ -94,11 +94,11 @@ function App() {
 
   // [FIXED] 確定済みUI: ショートカットキーは視認性重視で必ず黒背景・白文字とする (APP_SPEC参照)
   const Kbd = ({ children }: { children: string }) => (
-    <span className="ml-1.5 text-[10px] font-mono bg-gray-700 text-gray-200 rounded px-1.5 py-0.5 leading-none tracking-tight border border-gray-600 shadow-inner">{children}</span>
+    <span className="kbd-token">{children}</span>
   )
 
   return (
-    <div className="h-screen w-full flex flex-col bg-gray-50 overflow-hidden text-gray-800 font-sans antialiased">
+    <div className="app-shell h-screen w-full flex flex-col overflow-hidden text-gray-800 font-sans antialiased">
       
       {/* Login Overlay */}
       {showLogin && (
@@ -134,9 +134,9 @@ function App() {
       )}
 
       {/* 1. Header Area */}
-      <header className="h-[60px] bg-gray-900 flex items-center justify-between px-6 shrink-0 z-10 shadow-sm text-white">
+      <header className="app-header h-[60px] flex items-center justify-between px-6 shrink-0 z-10 text-white">
         <div className="flex items-center space-x-3">
-          <div className="bg-gray-800 text-transparent bg-clip-text bg-gradient-to-br from-blue-400 to-teal-300 p-2 rounded-lg border border-gray-700 shadow-inner">
+          <div className="brand-tile text-transparent bg-clip-text bg-gradient-to-br from-blue-400 to-teal-300 p-2 rounded-lg">
              <LayoutGrid size={22} className="text-teal-400" />
           </div>
           <div className="flex flex-col justify-center">
@@ -159,15 +159,15 @@ function App() {
 
       {/* 2. Compact Command Bar */}
       {!isFocusMode && (
-        <div className="shrink-0 bg-white border-b border-gray-200 shadow-sm px-5 py-2.5 flex items-center justify-between gap-3 overflow-visible relative z-20">
+        <div className="command-bar shrink-0 px-5 py-2.5 flex items-center justify-between gap-3 overflow-visible relative z-20">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex items-center bg-white rounded-md border border-gray-300 shadow-sm p-0.5">
+            <div className="panel-control flex items-center rounded-md p-0.5">
               <button onClick={() => gridAreaRef.current?.customUndo()} className="p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800 rounded transition" title="元に戻す (Ctrl+Z)"><Undo size={15} /></button>
               <div className="w-[1px] h-4 bg-gray-200 mx-0.5"></div>
               <button onClick={() => gridAreaRef.current?.customRedo()} className="p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800 rounded transition" title="やり直す (Ctrl+Y)"><Redo size={15} /></button>
             </div>
 
-            <div className="flex items-center bg-white rounded-md border border-gray-300 shadow-sm p-0.5">
+            <div className="panel-control flex items-center rounded-md p-0.5">
               <button onClick={() => gridAreaRef.current?.addRow('見積中')} className="flex items-center px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-gray-100 hover:text-gray-900 rounded transition" title="新しい空行（見積中）を追加します"><Plus size={14} className="mr-1.5 opacity-70"/>見積追加<Kbd>Alt+Q</Kbd></button>
               <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
               <button onClick={() => gridAreaRef.current?.registerOrder()} className="flex items-center px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-gray-100 hover:text-gray-900 rounded transition" title="選択した見積を受注として確定します"><CheckCircle size={15} className="mr-1.5 text-gray-500" />受注登録<Kbd>Alt+R</Kbd></button>
@@ -229,7 +229,7 @@ function App() {
       )}
 
       {/* 3. Task Tabs (グレー背景に溶け込むタブ) */}
-      <div className="flex space-x-6 border-b border-gray-300 px-8 pt-4 bg-gray-100 text-sm shrink-0 overflow-x-auto whitespace-nowrap">
+      <div className="task-tabs flex space-x-6 px-8 pt-4 text-sm shrink-0 overflow-x-auto whitespace-nowrap">
          <button onClick={() => setActiveTab('dashboard')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center -mb-[1px] flex-shrink-0 ${activeTab === 'dashboard' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="売上推移などのダッシュボードを表示します"><BarChart2 size={16} className="mr-1 mt-0.5" />ﾀﾞｯｼｭﾎﾞｰﾄﾞ</button>
          <button onClick={() => setActiveTab('all')} className={`pb-3 font-semibold transition border-b-[3px] -mb-[1px] flex-shrink-0 ${activeTab === 'all' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="すべての案件（非表示以外）を一覧で表示します">全データ</button>
          <button onClick={() => setActiveTab('quote')} className={`pb-3 font-semibold transition border-b-[3px] -mb-[1px] flex-shrink-0 ${activeTab === 'quote' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="現在「見積中」の案件のみを絞り込んで表示します">見積中</button>
@@ -249,8 +249,8 @@ function App() {
           ) : activeTab === 'master' ? (
               <MasterViewer />
           ) : (
-              <div className="p-4 pt-4 w-full h-full">
-                  <div className="bg-white rounded shadow w-full h-full border border-gray-300 overflow-hidden">
+              <div className="workspace-wrap p-4 pt-4 w-full h-full">
+                  <div className="workspace-card w-full h-full overflow-hidden">
                       <GridArea activeTab={activeTab} session={session} ref={gridAreaRef} />
                   </div>
               </div>
