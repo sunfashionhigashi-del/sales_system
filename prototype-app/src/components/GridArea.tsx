@@ -7,23 +7,12 @@ ModuleRegistry.registerModules([AllCommunityModule, AllEnterpriseModule])
 
 import { supabase } from '../lib/supabase'
 import OrderDetailModal from './OrderDetailModal'
-import { Database } from 'lucide-react'
+import { Database, FilterX } from 'lucide-react'
 
 interface GridAreaProps {
   activeTab: string;
   session: any;
 }
-
-// Phase 1: Mock Item Master DB (品番による補完や、過去の価格乖離警告用)
-const itemMasterDB: any = {
-    "MW-0806T": { itemName: "モビロンテープ", category: "PUテープ", costPrice: 120.0, salesPrice: 200.0 },
-    "RIBBON-001": { itemName: "サテンリボン", category: "リボン", costPrice: 50.0, salesPrice: 80.0 },
-    "R-F-0099": { itemName: "ストレッチレース", category: "レース", costPrice: 15.5, salesPrice: 22.0 },
-    "BT-RESIN-15": { itemName: "Resin Button 15mm", category: "ボタン", costPrice: 8.5, salesPrice: 15.0 },
-    "ZIP-MET-10": { itemName: "Metal Zipper 10cm", category: "パーツ", costPrice: 45.0, salesPrice: 90.0 },
-    "LACE-NY-05": { itemName: "Nylon Lace 5cm", category: "レース", costPrice: 22.0, salesPrice: 38.0 },
-    "TAPE-COT-20": { itemName: "Cotton Tape 20mm", category: "PUテープ", costPrice: 14.0, salesPrice: 28.0 }
-};
 
 // ステータスバッジ — モジュールのクリーンなテキスト＋ドットデザイン
 const StatusBadgeRenderer = (params: any) => {
@@ -56,11 +45,16 @@ const PriceCellRenderer = (params: any) => {
     }
     
     const isCost = params.colDef?.field === 'cost_price';
-    const master = params.data?.item_code ? itemMasterDB[params.data.item_code] : null;
+    const master = params.context?.itemMasterDB && params.data?.item_code ? params.context.itemMasterDB[params.data.item_code] : null;
     let suggestion = null;
     
-    if (master) {
-        const mPrice = isCost ? master.costPrice : master.salesPrice;
+    if (master && master.prices && master.prices.length > 0) {
+        let matchedPrice = master.prices.find((pr: any) => pr.size === params.data?.item_size);
+        if (!matchedPrice) {
+            matchedPrice = master.prices.find((pr: any) => pr.size === '-') || master.prices[0];
+        }
+        
+        const mPrice = isCost ? matchedPrice.costPrice : matchedPrice.salesPrice;
         const currentVal = parseFloat(params.value);
         // 現在値が空、またはマスタと異なる場合にふんわり提案を出す
         if (isNaN(currentVal) || currentVal !== mPrice) {
@@ -127,9 +121,38 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   const gridRef = useRef<AgGridReact>(null)
   const [rowData, setRowData] = useState<any[]>([])
   const [selectedRowData, setSelectedRowData] = useState<any>(null)
+  const [activeFilterCount, setActiveFilterCount] = useState(0)
 
   const [undoStack, setUndoStack] = useState<any[]>([])
   const [redoStack, setRedoStack] = useState<any[]>([])
+
+  const [itemMasterDB, setItemMasterDB] = useState<any>({});
+  
+  useEffect(() => {
+     const fetchMaster = async () => {
+         const { data: products } = await supabase.from('products').select('*');
+         const { data: prices } = await supabase.from('product_prices').select('*');
+         
+         if (products && prices) {
+             const db: any = {};
+             products.forEach(p => {
+                 const itemPrices = prices.filter(pr => pr.item_code === p.item_code);
+                 db[p.item_code] = {
+                     itemName: p.item_name,
+                     category: p.category,
+                     supplierItemCode: p.supplier_item_code,
+                     prices: itemPrices.map(pr => ({
+                         size: pr.size,
+                         costPrice: pr.cost_price || 0,
+                         salesPrice: pr.base_sales_price || 0,
+                     }))
+                 };
+             });
+             setItemMasterDB(db);
+         }
+     };
+     fetchMaster();
+  }, []);
 
   const captureSnapshot = useCallback(() => {
      if(gridRef.current?.api) {
@@ -738,6 +761,17 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
       }
   };
 
+  const handleFilterChanged = useCallback(() => {
+      const model = gridRef.current?.api.getFilterModel() || {};
+      setActiveFilterCount(Object.keys(model).length);
+  }, []);
+
+  const clearColumnFilters = useCallback(() => {
+      gridRef.current?.api.setFilterModel(null);
+      gridRef.current?.api.onFilterChanged();
+      setActiveFilterCount(0);
+  }, []);
+
   const isExternalFilterPresent = useCallback(() => true, [])
   const doesExternalFilterPass = useCallback((node: any) => {
      if (!node.data) return false;
@@ -855,13 +889,18 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
 
   const getPriceWarningStyle = (params: any) => {
      if (!params.value || !params.data.item_code) return {};
-     const history = itemMasterDB[params.data.item_code];
-     if (!history) return {};
+     const history = params.context?.itemMasterDB ? params.context.itemMasterDB[params.data.item_code] : null;
+     if (!history || !history.prices || history.prices.length === 0) return {};
      
-     if (params.colDef.field === 'cost_price' && parseFloat(params.value) !== history.costPrice) {
+     let matchedPrice = history.prices.find((pr: any) => pr.size === params.data?.item_size);
+     if (!matchedPrice) {
+         matchedPrice = history.prices.find((pr: any) => pr.size === '-') || history.prices[0];
+     }
+     
+     if (params.colDef.field === 'cost_price' && parseFloat(params.value) !== matchedPrice.costPrice) {
          return { backgroundColor: '#fffac9', color: '#d97706', fontWeight: 'bold' };
      }
-     if (params.colDef.field === 'sales_price' && parseFloat(params.value) !== history.salesPrice) {
+     if (params.colDef.field === 'sales_price' && parseFloat(params.value) !== matchedPrice.salesPrice) {
          return { backgroundColor: '#fffac9', color: '#d97706', fontWeight: 'bold' };
      }
      return {};
@@ -925,6 +964,10 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                  headerTooltip: "当社の管理品番" },
                { headerName: "仕入先品番", field: "supplier_item_code", editable: true, width: 120,
                  headerTooltip: "メーカーや仕入先での品番" },
+                { headerName: "サイズ", field: "item_size", editable: true, width: 90,
+                  headerTooltip: "サイズ" },
+                { headerName: "カラー", field: "item_color", editable: true, width: 90,
+                  headerTooltip: "カラー" },
                { headerName: "品名・仕様", field: "item_name", editable: true, width: 180,
                  headerTooltip: "商品名・仕様詳細（混率など）" },
                { headerName: "数量", field: "qty", editable: true, width: 75, type: 'numericColumn',
@@ -1120,18 +1163,29 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
      const rowData = params.data;
      
      // 1. マスターDB補完
-     if (colId === 'item_code' && params.newValue) {
-         const masterData = itemMasterDB[params.newValue];
+     // 1. マスターDB補完
+     if ((colId === 'item_code' || colId === 'item_size') && rowData.item_code) {
+         const masterData = itemMasterDB[rowData.item_code];
          if (masterData) {
-             params.node.setDataValue('item_name', masterData.itemName);
-             params.node.setDataValue('category', masterData.category);
-             // 品番入力時、仕入/販売価格が未設定ならマスタ価格で初期補完
-             if (!rowData.cost_price) params.node.setDataValue('cost_price', masterData.costPrice);
-             if (!rowData.sales_price) params.node.setDataValue('sales_price', masterData.salesPrice);
+             if (colId === 'item_code') {
+                 params.node.setDataValue('item_name', masterData.itemName);
+                 params.node.setDataValue('category', masterData.category);
+                 params.node.setDataValue('supplier_item_code', masterData.supplierItemCode);
+             }
              
-             // リフレッシュによりWarningスタイルやサジェスト表示を即時評価
-             if (params.api) {
-                 params.api.refreshCells({ rowNodes: [params.node], columns: ['cost_price', 'sales_price'] });
+             if (masterData.prices && masterData.prices.length > 0) {
+                 let matchedPrice = masterData.prices.find((pr: any) => pr.size === rowData.item_size);
+                 if (!matchedPrice) {
+                     matchedPrice = masterData.prices.find((pr: any) => pr.size === '-') || masterData.prices[0];
+                 }
+                 
+                 params.node.setDataValue('cost_price', matchedPrice.costPrice);
+                 params.node.setDataValue('sales_price', matchedPrice.salesPrice);
+                 params.node.setDataValue('markup_rate', '手動(ﾏﾆｭｱﾙ)');
+                 
+                 if (params.api) {
+                     params.api.refreshCells({ rowNodes: [params.node], columns: ['cost_price', 'sales_price', 'markup_rate'] });
+                 }
              }
          }
      }
@@ -1189,10 +1243,20 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
      if (gridRef.current?.api && colId === 'status') {
         gridRef.current.api.onFilterChanged()
      }
-  }, [captureSnapshot])
+  }, [captureSnapshot, itemMasterDB])
 
   return (
-    <div className="ag-theme-alpine w-full h-full text-sm relative">
+    <div className={`ag-theme-alpine w-full h-full text-sm relative ${activeFilterCount > 0 ? 'ag-filtering-active' : ''}`}>
+      {activeFilterCount > 0 && (
+         <button
+           onClick={clearColumnFilters}
+           className="absolute top-3 right-4 z-50 flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-100 hover:border-blue-300 transition"
+           title="列フィルターをすべて解除します（タブの絞り込みは維持されます）"
+         >
+             <FilterX size={14} className="mr-1.5" />
+             列フィルター中: {activeFilterCount}件
+         </button>
+      )}
       {totalCount !== null && (
          <div className="absolute bottom-6 right-6 z-50 bg-slate-800/90 backdrop-blur-sm text-white px-4 py-2 rounded-full shadow-xl border border-slate-700/50 flex items-center pointer-events-none">
              <Database size={14} className="mr-2 text-slate-400" />
@@ -1206,6 +1270,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         rowData={isLoading && page === 0 ? undefined : rowData} 
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
+        context={{ itemMasterDB }}
         rowSelection="multiple"
         getRowStyle={getRowStyle}
         onCellValueChanged={onCellValueChanged}
@@ -1215,6 +1280,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         isExternalFilterPresent={isExternalFilterPresent}
         doesExternalFilterPass={doesExternalFilterPass}
         onBodyScroll={onBodyScroll}
+        onFilterChanged={handleFilterChanged}
         localeText={AG_GRID_LOCALE_JP}
         autoSizeStrategy={{ type: 'fitCellContents' }}
       />

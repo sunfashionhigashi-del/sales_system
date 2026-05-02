@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Truck, Package, Tag, Building, Plus, Trash } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2, Truck, Package, Tag, Building, Plus, Trash } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import MasterDetailModal from './MasterDetailModal';
@@ -12,6 +12,7 @@ const MasterViewer = () => {
   const [activeMaster, setActiveMaster] = useState('suppliers');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const gridRef = useRef<AgGridReact>(null);
   const [selectedRowData, setSelectedRowData] = useState<any>(null);
 
@@ -60,11 +61,15 @@ const MasterViewer = () => {
     
     if (rowData.id) {
        // UPDATE
+       setSaveStatus('saving');
        const { error } = await supabase.from(activeMaster).update({ [field]: newValue }).eq('id', rowData.id);
        if (error) {
           console.error("Update failed:", error);
+          setSaveStatus('error');
           alert("保存に失敗しました。");
           params.node.setDataValue(field, oldValue); // revert
+       } else {
+          setSaveStatus('saved');
        }
     }
   }, [activeMaster]);
@@ -91,12 +96,15 @@ const MasterViewer = () => {
       const idsToDelete = selectedNodes.map(node => node.data.id).filter(id => id);
       
       if (idsToDelete.length > 0) {
+          setSaveStatus('saving');
           const { error } = await supabase.from(activeMaster).delete().in('id', idsToDelete);
           if (error) {
              console.error(error);
+             setSaveStatus('error');
              alert("削除に失敗しました。FOREIGN KEY制約などで使われている可能性があります。");
              return;
           }
+          setSaveStatus('saved');
       }
       
       gridRef.current?.api.applyTransaction({ remove: selectedNodes.map(n => n.data) });
@@ -105,9 +113,11 @@ const MasterViewer = () => {
   const handleSaveModal = async (updatedData: any) => {
       const isNew = !updatedData.id;
       if (isNew) {
+          setSaveStatus('saving');
           const { data: inserted, error } = await supabase.from(activeMaster).insert(updatedData).select();
           if (error) {
               console.error(error);
+              setSaveStatus('error');
               alert("登録に失敗しました。必須項目が入力されていない可能性があります。\n" + error.message);
               return;
           }
@@ -115,12 +125,15 @@ const MasterViewer = () => {
               gridRef.current?.api.applyTransaction({ add: [inserted[0]], addIndex: 0 });
               setData(prev => [inserted[0], ...prev]);
           }
+          setSaveStatus('saved');
       } else {
           // 予約語を除外してUpdate
           const { id, created_at, updated_at, ...updatePayload } = updatedData;
+          setSaveStatus('saving');
           const { error } = await supabase.from(activeMaster).update(updatePayload).eq('id', id);
           if (error) {
               console.error(error);
+              setSaveStatus('error');
               alert("更新に失敗しました。\n" + error.message);
               return;
           }
@@ -128,9 +141,19 @@ const MasterViewer = () => {
           if (rowNode) {
               rowNode.updateData(updatedData);
           }
+          setSaveStatus('saved');
       }
       setSelectedRowData(null);
   };
+
+  const saveStatusView = {
+    idle: { label: 'マスターはセル編集で即時保存されます', icon: CheckCircle, className: 'bg-slate-100 text-slate-500 border-slate-200' },
+    saving: { label: '保存中...', icon: Loader2, className: 'bg-blue-50 text-blue-700 border-blue-100 animate-pulse' },
+    saved: { label: '保存済み', icon: CheckCircle, className: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+    error: { label: '保存失敗', icon: AlertCircle, className: 'bg-rose-50 text-rose-700 border-rose-100' },
+  }[saveStatus];
+
+  const SaveStatusIcon = saveStatusView.icon;
 
   return (
     <div className="flex flex-col h-full w-full bg-gray-50">
@@ -168,14 +191,18 @@ const MasterViewer = () => {
       <div className="flex-1 flex flex-col overflow-hidden p-6 gap-4">
         
         {/* Actions Toolbar */}
-        <div className="flex items-center space-x-3 shrink-0">
+        <div className="flex items-center gap-3 shrink-0 flex-wrap">
             <button onClick={handleAddRow} className="flex items-center bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 flex-shrink-0 rounded shadow-sm text-sm font-bold transition">
                 <Plus size={16} className="mr-2"/> 新規追加
             </button>
             <button onClick={handleDeleteRow} className="flex items-center border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2 flex-shrink-0 rounded shadow-sm text-sm font-bold transition">
                 <Trash size={16} className="mr-2"/> 選択行を削除
             </button>
-            <span className="text-gray-500 text-xs ml-4">※セルを直接編集して保存するか、行をダブルクリックで詳細ポップアップを開きます。</span>
+            <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold ${saveStatusView.className}`}>
+                <SaveStatusIcon size={14} className={`mr-1.5 ${saveStatus === 'saving' ? 'animate-spin' : ''}`} />
+                {saveStatusView.label}
+            </span>
+            <span className="text-gray-500 text-xs">※行をダブルクリックすると詳細ポップアップを開きます。</span>
         </div>
 
         <div className="flex-1 bg-white rounded-lg shadow border border-gray-200 overflow-hidden ag-theme-alpine w-full h-full">

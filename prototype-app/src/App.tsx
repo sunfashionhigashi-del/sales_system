@@ -155,9 +155,9 @@ function App() {
       <div className="flex flex-col shrink-0 bg-white border-b border-gray-200 shadow-sm relative z-0">
         
         {/* 上段：主要ワークフローと保存アクション */}
-        <div className="px-6 py-3 flex items-center justify-between">
+        <div className="px-6 py-3 flex items-center justify-between gap-3 overflow-x-auto">
            
-           <div className="flex items-center gap-4">
+           <div className="flex items-center gap-4 flex-wrap min-w-0">
               
               {/* Undo / Redo グループ */}
               <div className="flex items-center bg-white rounded-md border border-gray-300 shadow-sm p-0.5">
@@ -182,7 +182,7 @@ function App() {
               </div>
 
               {/* HERO: クラウドに保存ボタン (左に移動) */}
-              <button onClick={() => gridAreaRef.current?.saveData()} className="group flex items-center px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow text-sm font-bold transition-all focus:ring-4 focus:ring-blue-100 ml-2">
+              <button onClick={() => gridAreaRef.current?.saveData()} className="group flex items-center px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow text-sm font-bold transition-all focus:ring-4 focus:ring-blue-100 ml-2 flex-shrink-0">
                  <Save size={16} className="mr-2 group-hover:scale-110 transition-transform" />保存
                  <span className="ml-2 px-1.5 py-0.5 bg-blue-800 rounded font-mono text-[10px]">Ctrl+S</span>
               </button>
@@ -194,7 +194,7 @@ function App() {
         </div>
 
         {/* 下段：サブアクション（行の個別操作と書類出力） */}
-        <div className="px-6 py-2 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between text-xs">
+        <div className="px-6 py-2 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
           
           {/* [FIXED] 確定済みUI: 選択行の操作グループ（Kbd付き） */}
           <div className="flex items-center gap-1.5">
@@ -202,7 +202,7 @@ function App() {
              
              <button onClick={() => gridAreaRef.current?.openDetailModal()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-blue-50 text-blue-700 font-medium transition shadow-sm" title="選択した行の詳細入力画面を開く"><Edit size={13} className="mr-1.5 text-blue-500"/>詳細編集</button>
              <button onClick={() => gridAreaRef.current?.duplicateRow()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-100 text-slate-700 font-medium transition shadow-sm" title="選択した行を複製して新しい行を作成"><Copy size={13} className="mr-1.5 text-slate-500"/>複製<Kbd>Alt+C</Kbd></button>
-             <button onClick={() => gridAreaRef.current?.splitRow()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-100 text-slate-700 font-medium transition shadow-sm" title="選択した行の数量を分割して新しい行を派生"><Scissors size={13} className="mr-1.5 text-slate-500"/>分割<Kbd>Alt+S</Kbd></button>
+             <button onClick={() => gridAreaRef.current?.splitRow()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-100 text-slate-700 font-medium transition shadow-sm" title="選択した行の数量を分割して新しい行を派生"><Scissors size={13} className="mr-1.5 text-slate-500"/>分割<Kbd>Alt+D</Kbd></button>
              <button onClick={() => gridAreaRef.current?.kitRows()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-100 text-slate-700 font-medium transition shadow-sm" title="複数の行をまたいで加工セット品を生成"><Package size={13} className="mr-1.5 text-slate-500"/>加工キット<Kbd>Alt+K</Kbd></button>
              
              <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
@@ -216,38 +216,37 @@ function App() {
              </button>
              {activeTab === 'archived' && (
                  <button onClick={() => gridAreaRef.current?.restoreSelected()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded text-slate-700 font-medium transition shadow-sm" title="非表示の行を元の画面へ復元させる">
-                     <Archive size={13} className="mr-1.5 text-slate-500"/>復元<Kbd>Alt+R</Kbd>
+                     <Archive size={13} className="mr-1.5 text-slate-500"/>復元
                  </button>
              )}
           </div>
 
           {/* ドキュメントエクスポート */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
              <span className="font-bold text-slate-400 tracking-widest mr-2 text-[10px]">EXPORT (Phase 3)</span>
              <button onClick={() => gridAreaRef.current?.generateEstimate()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-medium transition shadow-sm" title="選択した行からExcel見積書を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>見積書</button>
-             <button onClick={() => gridAreaRef.current?.registerOrder()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:border-green-300 hover:bg-green-50 hover:text-green-700 text-slate-700 font-medium transition shadow-sm" title="見積中の行に対して、受注日等の入力を促しステータスを発注待へ進める"><FileText size={13} className="mr-1.5 text-slate-400"/>受注登録</button>
              <button onClick={() => gridAreaRef.current?.generateSalesNote()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-medium transition shadow-sm" title="受注確定済みの行から社内用 Sales Note を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>Sales Note</button>
              <button onClick={() => gridAreaRef.current?.generatePO()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-medium transition shadow-sm" title="発注待の行からメーカー向け PO (Purchasing Order) を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>発注書</button>
              <button onClick={() => gridAreaRef.current?.generateInvoice()} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-medium transition shadow-sm" title="出荷済みの行から顧客向け Invoice を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>Invoice</button>
              
-             <button onClick={() => alert('[Phase 3] Proforma\nこの機能はフェーズ3で実装予定ですが、プレースホルダーとして復活させました。')} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-50 text-slate-700 font-medium transition shadow-sm ml-1" title="事前送金用の Proforma Invoice を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>Proforma</button>
-             <button onClick={() => alert('[Phase 3] Packing List\nこの機能はフェーズ3で実装予定ですが、プレースホルダーとして復活させました。')} className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-50 text-slate-700 font-medium transition shadow-sm" title="出荷用の Packing List を生成"><FileText size={13} className="mr-1.5 text-slate-400"/>Packing List</button>
-          </div>
+             <button disabled className="flex items-center px-3 py-1.5 bg-slate-100 border border-slate-200 rounded text-slate-400 font-medium shadow-sm cursor-not-allowed ml-1" title="Phase 3で実装予定です"><FileText size={13} className="mr-1.5 text-slate-300"/>Proforma<span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">準備中</span></button>
+             <button disabled className="flex items-center px-3 py-1.5 bg-slate-100 border border-slate-200 rounded text-slate-400 font-medium shadow-sm cursor-not-allowed" title="Phase 3で実装予定です"><FileText size={13} className="mr-1.5 text-slate-300"/>Packing List<span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">準備中</span></button>
+           </div>
         </div>
       </div>
 
       {/* 3. Task Tabs (グレー背景に溶け込むタブ) */}
-      <div className="flex space-x-6 border-b border-gray-300 px-8 pt-4 bg-gray-100 text-sm shrink-0">
-         <button onClick={() => setActiveTab('dashboard')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center -mb-[1px] ${activeTab === 'dashboard' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="売上推移などのダッシュボードを表示します"><BarChart2 size={16} className="mr-1 mt-0.5" />ﾀﾞｯｼｭﾎﾞｰﾄﾞ</button>
-         <button onClick={() => setActiveTab('all')} className={`pb-3 font-semibold transition border-b-[3px] -mb-[1px] ${activeTab === 'all' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="すべての案件（非表示以外）を一覧で表示します">全データ</button>
-         <button onClick={() => setActiveTab('quote')} className={`pb-3 font-semibold transition border-b-[3px] -mb-[1px] ${activeTab === 'quote' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="現在「見積中」の案件のみを絞り込んで表示します">見積中</button>
-         <button onClick={() => setActiveTab('alert_po')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center -mb-[1px] ${activeTab === 'alert_po' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="受注が確定しているのに、まだメーカーに「発注」していない警告行を表示します"><span className={`w-2 h-2 rounded-full mr-1.5 shadow-inner border border-black/10 ${activeTab === 'alert_po' ? 'bg-gray-800' : 'bg-red-500'}`}></span>発注待アラート</button>
-         <button onClick={() => setActiveTab('pre_order')} className={`pb-3 font-semibold transition border-b-[3px] -mb-[1px] ${activeTab === 'pre_order' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="受注確定前に先行してメーカーへ「発注」した特殊な案件を表示します">先行発注</button>
-         <button onClick={() => setActiveTab('process')} className={`pb-3 font-semibold transition border-b-[3px] -mb-[1px] ${activeTab === 'process' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="セットアップや加工手配中の案件を表示します">加工中</button>
-         <button onClick={() => setActiveTab('pending_invoice')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center -mb-[1px] ${activeTab === 'pending_invoice' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="出荷（メーカー発注）済みですが、まだ顧客へ「請求（Invoice発行）」していない案件を表示します"><span className={`w-2 h-2 rounded-full mr-1.5 shadow-inner border border-black/10 ${activeTab === 'pending_invoice' ? 'bg-gray-800' : 'bg-amber-400'}`}></span>未請求</button>
-         <button onClick={() => setActiveTab('payment')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center -mb-[1px] ${activeTab === 'payment' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="BL DATE（船積日）以降の、入金確認や予実管理に特化した表示モードに切り替えます"><span className={`w-2 h-2 rounded-full mr-1.5 shadow-inner border border-black/10 ${activeTab === 'payment' ? 'bg-gray-800' : 'bg-green-500'}`}></span>入金状況</button>
-         <button onClick={() => setActiveTab('master')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center ml-auto -mb-[1px] ${activeTab === 'master' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="マスター管理データの閲覧・修正"><Database size={14} className="mr-1 mt-0.5" />ﾏｽﾀｰ</button>
-         <button onClick={() => setActiveTab('archived')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center ml-4 -mb-[1px] ${activeTab === 'archived' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="過去に非表示化（アーカイブ化）したデータを閲覧・復元します"><Archive size={14} className="mr-1 mt-0.5" />ｱｰｶｲﾌﾞ</button>
+      <div className="flex space-x-6 border-b border-gray-300 px-8 pt-4 bg-gray-100 text-sm shrink-0 overflow-x-auto whitespace-nowrap">
+         <button onClick={() => setActiveTab('dashboard')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center -mb-[1px] flex-shrink-0 ${activeTab === 'dashboard' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="売上推移などのダッシュボードを表示します"><BarChart2 size={16} className="mr-1 mt-0.5" />ﾀﾞｯｼｭﾎﾞｰﾄﾞ</button>
+         <button onClick={() => setActiveTab('all')} className={`pb-3 font-semibold transition border-b-[3px] -mb-[1px] flex-shrink-0 ${activeTab === 'all' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="すべての案件（非表示以外）を一覧で表示します">全データ</button>
+         <button onClick={() => setActiveTab('quote')} className={`pb-3 font-semibold transition border-b-[3px] -mb-[1px] flex-shrink-0 ${activeTab === 'quote' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="現在「見積中」の案件のみを絞り込んで表示します">見積中</button>
+         <button onClick={() => setActiveTab('alert_po')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center -mb-[1px] flex-shrink-0 ${activeTab === 'alert_po' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="受注が確定しているのに、まだメーカーに「発注」していない警告行を表示します"><span className={`w-2 h-2 rounded-full mr-1.5 shadow-inner border border-black/10 ${activeTab === 'alert_po' ? 'bg-gray-800' : 'bg-red-500'}`}></span>発注待アラート</button>
+         <button onClick={() => setActiveTab('pre_order')} className={`pb-3 font-semibold transition border-b-[3px] -mb-[1px] flex-shrink-0 ${activeTab === 'pre_order' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="受注確定前に先行してメーカーへ「発注」した特殊な案件を表示します">先行発注</button>
+         <button onClick={() => setActiveTab('process')} className={`pb-3 font-semibold transition border-b-[3px] -mb-[1px] flex-shrink-0 ${activeTab === 'process' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="セットアップや加工手配中の案件を表示します">加工中</button>
+         <button onClick={() => setActiveTab('pending_invoice')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center -mb-[1px] flex-shrink-0 ${activeTab === 'pending_invoice' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="出荷（メーカー発注）済みですが、まだ顧客へ「請求（Invoice発行）」していない案件を表示します"><span className={`w-2 h-2 rounded-full mr-1.5 shadow-inner border border-black/10 ${activeTab === 'pending_invoice' ? 'bg-gray-800' : 'bg-amber-400'}`}></span>未請求</button>
+         <button onClick={() => setActiveTab('payment')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center -mb-[1px] flex-shrink-0 ${activeTab === 'payment' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="BL DATE（船積日）以降の、入金確認や予実管理に特化した表示モードに切り替えます"><span className={`w-2 h-2 rounded-full mr-1.5 shadow-inner border border-black/10 ${activeTab === 'payment' ? 'bg-gray-800' : 'bg-green-500'}`}></span>入金状況</button>
+         <button onClick={() => setActiveTab('master')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center ml-auto -mb-[1px] flex-shrink-0 ${activeTab === 'master' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="マスター管理データの閲覧・修正"><Database size={14} className="mr-1 mt-0.5" />ﾏｽﾀｰ</button>
+         <button onClick={() => setActiveTab('archived')} className={`pb-3 font-semibold transition border-b-[3px] flex items-center ml-4 -mb-[1px] flex-shrink-0 ${activeTab === 'archived' ? 'border-gray-800 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`} title="過去に非表示化（アーカイブ化）したデータを閲覧・復元します"><Archive size={14} className="mr-1 mt-0.5" />ｱｰｶｲﾌﾞ</button>
       </div>
 
       {/* 4. Main Area (Grid or Dashboard) */}

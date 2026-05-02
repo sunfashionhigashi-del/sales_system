@@ -116,3 +116,24 @@
 .ag-theme-alpine .ag-floating-filter-button button:hover::after {
     opacity: 1;
 }
+
+/* フィルター適用中の列を明示する。入力BOX非表示仕様のまま、見落としだけ防ぐ。 */
+.ag-theme-alpine .ag-header-cell-filtered,
+.ag-theme-alpine .ag-filtering-active .ag-header-cell-filtered {
+    background-color: #eff6ff !important;
+    color: #1d4ed8 !important;
+}
+
+.ag-theme-alpine .ag-header-cell-filtered .ag-header-cell-text {
+    font-weight: 800 !important;
+}
+
+.ag-theme-alpine .ag-header-cell-filtered .ag-floating-filter-button button {
+    background-color: #dbeafe !important;
+    border-color: #93c5fd !important;
+}
+
+.ag-theme-alpine .ag-header-cell-filtered .ag-floating-filter-button button::after {
+    opacity: 1;
+    filter: saturate(1.35);
+}
