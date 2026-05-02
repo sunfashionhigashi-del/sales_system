@@ -121,12 +121,75 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   const gridRef = useRef<AgGridReact>(null)
   const [rowData, setRowData] = useState<any[]>([])
   const [selectedRowData, setSelectedRowData] = useState<any>(null)
+  const [selectedRows, setSelectedRows] = useState<any[]>([])
   const [activeFilterCount, setActiveFilterCount] = useState(0)
+  const [gridViewMode, setGridViewMode] = useState<'entry' | 'margin' | 'sfa' | 'all'>('entry')
 
   const [undoStack, setUndoStack] = useState<any[]>([])
   const [redoStack, setRedoStack] = useState<any[]>([])
 
   const [itemMasterDB, setItemMasterDB] = useState<any>({});
+
+  const toNumber = (value: any) => {
+     const n = typeof value === 'number' ? value : parseFloat(String(value ?? '').replace(/,/g, ''));
+     return isNaN(n) ? 0 : n;
+  };
+
+  const getRateForRow = (data: any) => {
+     const isDomestic = data?.cost_currency === 'JPY' && data?.sales_currency === 'JPY';
+     if (isDomestic) return 1.0;
+     return data?.bl_date && data?.exchange_rate ? toNumber(data.exchange_rate) : (toNumber(data?.internal_rate) || 145.0);
+  };
+
+  const getLineProfit = (data: any) => {
+     const qty = toNumber(data?.qty);
+     const salesPrice = toNumber(data?.sales_price);
+     const costPrice = toNumber(data?.cost_price);
+     if (!qty || !salesPrice || !costPrice) return null;
+     const rate = getRateForRow(data);
+     const salesJPY = data?.sales_currency === 'JPY' ? salesPrice : salesPrice * rate;
+     const costJPY = data?.cost_currency === 'JPY' ? costPrice : costPrice * rate;
+     const miscJPY = toNumber(data?.misc_cost);
+     return (salesJPY * qty) - (costJPY * qty) - miscJPY;
+  };
+
+  const getLineSalesJPY = (data: any) => {
+     const qty = toNumber(data?.qty);
+     const salesPrice = toNumber(data?.sales_price);
+     if (!qty || !salesPrice) return 0;
+     const rate = getRateForRow(data);
+     return (data?.sales_currency === 'JPY' ? salesPrice : salesPrice * rate) * qty;
+  };
+
+  const getLineCostJPY = (data: any) => {
+     const qty = toNumber(data?.qty);
+     const costPrice = toNumber(data?.cost_price);
+     if (!qty || !costPrice) return 0;
+     const rate = getRateForRow(data);
+     return (data?.cost_currency === 'JPY' ? costPrice : costPrice * rate) * qty;
+  };
+
+  const getDealKey = (data: any) => data?.order_no || data?.quote_no || data?.customer_po || data?.invoice_no || null;
+
+  const yenFmt = (value: number) => value.toLocaleString('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
+
+  const summaryRows = useMemo(() => {
+     if (selectedRows.length === 1) {
+        const key = getDealKey(selectedRows[0]);
+        if (key) return rowData.filter(row => getDealKey(row) === key);
+     }
+     return selectedRows;
+  }, [rowData, selectedRows]);
+
+  const dealSummary = useMemo(() => {
+     const sales = summaryRows.reduce((sum, row) => sum + getLineSalesJPY(row), 0);
+     const cost = summaryRows.reduce((sum, row) => sum + getLineCostJPY(row), 0);
+     const misc = summaryRows.reduce((sum, row) => sum + toNumber(row?.misc_cost), 0);
+     const profit = summaryRows.reduce((sum, row) => sum + (getLineProfit(row) ?? 0), 0);
+     const margin = sales > 0 ? (profit / sales) * 100 : null;
+     const key = selectedRows.length === 1 ? getDealKey(selectedRows[0]) : null;
+     return { key, rows: summaryRows.length, sales, cost, misc, profit, margin };
+  }, [selectedRows, summaryRows]);
   
   useEffect(() => {
      const fetchMaster = async () => {
@@ -766,6 +829,10 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
       setActiveFilterCount(Object.keys(model).length);
   }, []);
 
+  const handleSelectionChanged = useCallback(() => {
+      setSelectedRows(gridRef.current?.api.getSelectedRows() || []);
+  }, []);
+
   const clearColumnFilters = useCallback(() => {
       gridRef.current?.api.setFilterModel(null);
       gridRef.current?.api.onFilterChanged();
@@ -914,6 +981,51 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   };
 
   const columnDefs = useMemo(() => {
+    const hiddenFieldsByView: Record<string, Set<string>> = {
+        entry: new Set([
+            'link_id',
+            'supplier_item_code',
+            'cost_total',
+            'sales_total',
+            'internal_rate',
+            'exchange_rate',
+            'misc_currency',
+            'misc_cost',
+            'markup_rate',
+            'end_user_currency',
+            'end_user_price',
+            'end_user_total',
+            'quote_remarks',
+            'po_remarks',
+            'invoice_remarks',
+            'system_log',
+        ]),
+        margin: new Set([
+            'end_user_currency',
+            'end_user_price',
+            'end_user_total',
+            'quote_remarks',
+            'po_remarks',
+            'invoice_remarks',
+            'system_log',
+        ]),
+        sfa: new Set([
+            'quote_remarks',
+            'po_remarks',
+            'invoice_remarks',
+            'system_log',
+        ]),
+        all: new Set(),
+    };
+
+    const applyGridView = (cols: any[]) => cols.map(group => ({
+        ...group,
+        children: group.children?.map((col: any) => ({
+            ...col,
+            hide: Boolean(col.field && hiddenFieldsByView[gridViewMode]?.has(col.field)),
+        })),
+    }));
+
     const rawCols = [
         { 
            headerName: "1. 管理・取引先", 
@@ -1053,8 +1165,9 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                      let costJPY = params.data.cost_currency === 'JPY' ? params.data.cost_price : params.data.cost_price * baseRate;
                      let miscJPY = params.data.misc_cost || 0;
                      const gp = (salesJPY * qty) - (costJPY * qty) - miscJPY;
-                     return Math.floor(gp).toLocaleString();
+                     return Math.floor(gp);
                  },
+                 valueFormatter: numFmt,
                  cellStyle: { backgroundColor: '#f1f5f9', color: '#64748b', fontWeight: 'bold' }
                },
                { headerName: "粗利率", field: "gross_margin", editable: false, width: 85, type: 'numericColumn',
@@ -1140,11 +1253,11 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         if (pmtGroup) {
             const others = rawCols.filter(g => !g.headerName.startsWith('6.'));
             others.splice(1, 0, pmtGroup); // 1. 管理・取引先の次に挿入
-            return others;
+            return applyGridView(others);
         }
     }
-    return rawCols;
-  }, [activeTab]);
+    return applyGridView(rawCols);
+  }, [activeTab, gridViewMode]);
 
   const defaultColDef = useMemo(() => ({
     resizable: true,
@@ -1246,7 +1359,44 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   }, [captureSnapshot, itemMasterDB])
 
   return (
-    <div className={`ag-theme-alpine w-full h-full text-sm relative ${activeFilterCount > 0 ? 'ag-filtering-active' : ''}`}>
+    <div className={`ag-theme-alpine w-full h-full text-sm relative flex flex-col ${activeFilterCount > 0 ? 'ag-filtering-active' : ''}`}>
+      <div className="shrink-0 border-b border-slate-200 bg-white/95 px-3 py-2 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center rounded-md border border-slate-200 bg-slate-50 p-0.5">
+            {[
+              { id: 'entry', label: '採算入力' },
+              { id: 'margin', label: '採算詳細' },
+              { id: 'sfa', label: '3社間/SFA' },
+              { id: 'all', label: '全項目' },
+            ].map(mode => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => setGridViewMode(mode.id as 'entry' | 'margin' | 'sfa' | 'all')}
+                className={`h-7 rounded px-3 text-xs font-bold transition ${gridViewMode === mode.id ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white hover:text-slate-900'}`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+            {dealSummary.rows > 0 ? (
+              <>
+                <span className="font-bold text-slate-900">{dealSummary.key ? `案件 ${dealSummary.key}` : '選択行'}</span>
+                <span>{dealSummary.rows}行</span>
+                <span>販売 {yenFmt(dealSummary.sales)}</span>
+                <span>仕入 {yenFmt(dealSummary.cost)}</span>
+                <span>経費 {yenFmt(dealSummary.misc)}</span>
+                <span className={`font-bold ${dealSummary.profit < 0 ? 'text-red-600' : 'text-emerald-700'}`}>粗利 {yenFmt(dealSummary.profit)}</span>
+                <span className={`font-bold ${dealSummary.profit < 0 ? 'text-red-600' : 'text-emerald-700'}`}>粗利率 {dealSummary.margin === null ? '-' : `${dealSummary.margin.toFixed(1)}%`}</span>
+              </>
+            ) : (
+              <span className="font-medium text-slate-500">明細を選択すると、選択行または同一案件の採算合計を表示します</span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="relative min-h-0 flex-1">
       {activeFilterCount > 0 && (
          <button
            onClick={clearColumnFilters}
@@ -1281,9 +1431,11 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         doesExternalFilterPass={doesExternalFilterPass}
         onBodyScroll={onBodyScroll}
         onFilterChanged={handleFilterChanged}
+        onSelectionChanged={handleSelectionChanged}
         localeText={AG_GRID_LOCALE_JP}
         autoSizeStrategy={{ type: 'fitCellContents' }}
       />
+      </div>
       {selectedRowData && (
          <OrderDetailModal 
             data={selectedRowData} 
