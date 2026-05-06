@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>PulseTime - 勤怠アプリ</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: rgba(20, 28, 48, 0.65);
+      --line: rgba(255, 255, 255, 0.12);
+      --text: #edf2ff;
+      --sub: #a3b3d9;
+      --accent: #57a7ff;
+      --accent2: #8b7bff;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: "Inter", "Noto Sans JP", -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 20% 10%, #1c2d52 0%, var(--bg) 50%) fixed;
+      min-height: 100svh;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 16px; }
+    .header {
+      position: sticky; top: 0; z-index: 10; backdrop-filter: blur(12px);
+      background: rgba(11, 16, 32, 0.7); border: 1px solid var(--line); border-radius: 16px;
+      display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; margin-bottom: 16px;
+    }
+    .brand h1 { margin: 0; font-size: 1.2rem; }
+    .brand p { margin: 2px 0 0; color: var(--sub); font-size: .8rem; }
+    .pill { border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; color: var(--sub); font-size: .82rem; }
+    .grid { display: grid; gap: 12px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px;
+      box-shadow: 0 12px 26px rgba(2, 8, 20, 0.35);
+    }
+    .stat .label { color: var(--sub); font-size: .82rem; }
+    .stat .value { font-size: 1.7rem; font-weight: 700; margin-top: 6px; }
+    .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+    button {
+      border: 0; border-radius: 12px; padding: 14px 10px; font-weight: 700; color: white; cursor: pointer;
+      transition: transform .12s ease, opacity .2s ease;
+    }
+    button:active { transform: scale(0.98); }
+    .in { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+    .out { background: linear-gradient(135deg, #fb7185, #f43f5e); }
+    .break { background: linear-gradient(135deg, #f59e0b, #fb7185); }
+    .resume { background: linear-gradient(135deg, #34d399, #10b981); }
+    .list { margin: 8px 0 0; padding: 0; list-style: none; }
+    .list li {
+      display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line);
+      font-size: .9rem;
+    }
+    .tag { font-size: .75rem; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--sub); }
+    .status-ok { color: var(--ok); font-weight: 700; }
+    .status-warn { color: var(--warn); font-weight: 700; }
+    .employees { display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+    .emp { padding: 8px; border: 1px solid var(--line); border-radius: 12px; font-size: .82rem; text-align: center; }
+    @media (max-width: 640px){ .employees{ grid-template-columns: repeat(2,1fr);} }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <div class="brand">
+        <h1>PulseTime 勤怠</h1>
+        <p>iPhone / Android ブラウザ対応</p>
+      </div>
+      <div class="pill" id="now"></div>
+    </header>
+
+    <section class="grid stats">
+      <article class="card stat">
+        <div class="label">今日の勤務時間</div>
+        <div class="value" id="workHours">00:00</div>
+      </article>
+      <article class="card stat">
+        <div class="label">今月の残業</div>
+        <div class="value" id="overtime">06:30</div>
+      </article>
+    </section>
+
+    <section class="card">
+      <div style="font-weight:700; margin-bottom:6px;">打刻</div>
+      <div class="buttons">
+        <button class="in" onclick="punch('出勤')">出勤</button>
+        <button class="out" onclick="punch('退勤')">退勤</button>
+        <button class="break" onclick="punch('休憩開始')">休憩開始</button>
+        <button class="resume" onclick="punch('休憩終了')">休憩終了</button>
+      </div>
+      <ul class="list" id="logList"></ul>
+    </section>
+
+    <section class="card" style="margin-top:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong>チーム状況（15名）</strong><span class="tag">中小企業向けシンプルUI</span>
+      </div>
+      <div class="employees" id="employees"></div>
+      <p style="color:var(--sub); font-size:.78rem; margin:10px 0 0;">※ 初期はデモ表示。バックエンド連携で本番運用可能。</p>
+    </section>
+  </main>
+
+  <script>
+    const logs = [];
+    const members = Array.from({ length: 15 }, (_, i) => ({
+      name: `社員${String(i + 1).padStart(2, "0")}`,
+      status: i % 4 === 0 ? "休憩中" : "勤務中"
+    }));
+
+    function fmt(date){ return date.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit"}); }
+
+    function renderClock(){
+      const d = new Date();
+      document.getElementById("now").textContent = d.toLocaleString("ja-JP", { month: "2-digit", day:"2-digit", weekday: "short", hour:"2-digit", minute:"2-digit"});
+    }
+
+    function punch(type){
+      const now = new Date();
+      logs.unshift({ type, time: fmt(now) });
+      if (logs.length > 8) logs.pop();
+      renderLogs();
+      if (type === "出勤") startTime = now;
+      updateWorkHours();
+    }
+
+    let startTime = null;
+    function updateWorkHours(){
+      if (!startTime) return;
+      const mins = Math.floor((Date.now() - startTime.getTime()) / 60000);
+      const h = String(Math.floor(mins / 60)).padStart(2,"0");
+      const m = String(mins % 60).padStart(2,"0");
+      document.getElementById("workHours").textContent = `${h}:${m}`;
+    }
+
+    function renderLogs(){
+      const ul = document.getElementById("logList");
+      ul.innerHTML = logs.map(l => `<li><span>${l.type}</span><strong>${l.time}</strong></li>`).join("");
+    }
+
+    function renderMembers(){
+      const root = document.getElementById("employees");
+      root.innerHTML = members.map(m => `
+        <div class="emp">
+          <div>${m.name}</div>
+          <div class="${m.status === "勤務中" ? "status-ok" : "status-warn"}">${m.status}</div>
+        </div>
+      `).join("");
+    }
+
+    renderClock(); renderMembers(); renderLogs();
+    setInterval(() => { renderClock(); updateWorkHours(); }, 1000);
+  </script>
+</body>
+</html>
