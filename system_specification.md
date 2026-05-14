@@ -111,6 +111,11 @@ If any logic, UI, or architecture is updated in the codebase during a session, t
 - **MURC Excel:** 月初に前月末までの相場を含むExcelを取得し、`data` シートのUSD `TTS` / `TTB` を `mufg_exchange_rates` へ投入する。営業日レートは公表値のまま保存し、休日・銀行休業日は前営業日の公表値をコピーして `is_business_day=false`、`previous_business_date` に参照元営業日を保存する。
 - **USD優遇:** 公表レート自体は変更せず、御社のUSD優遇は `exchange_rate_adjustments` に保持する。販売換算は `TTB + 0.50`、仕入換算は `TTS - 0.50` として適用する。
 - **補助ツール:** `prototype-app/scripts/import_murc_usd_rates.py` を追加し、ローカルのMURC `.xls` からUSD日次レートとUSD標準優遇ルールをSupabaseへ投入できるようにした。秘密鍵は `.env.admin.local` から読み取り、コードやログには保存しない。
+## 16. 2026-05-14 為替マスター計算接続
+- **共通計算:** `prototype-app/src/lib/exchangeRates.ts` を追加し、Grid/Dashboard共通で販売JPY、仕入JPY、粗利JPYを算出する。
+- **BL DATE確定後:** `BL DATE` と通貨に一致する `mufg_exchange_rates` が存在する場合、販売は `ttb_rate + preferential_ttb_adjustment`、仕入は `tts_rate + preferential_tts_adjustment` で換算する。
+- **未確定・未登録日:** `BL DATE` が未入力、または該当日の為替マスターが未登録の場合は、既存運用どおり `exchange_rate` 手入力値、なければ `internal_rate`、さらに未入力なら `145` をフォールバックとして使う。
+- **表示範囲:** グリッドの `粗利(円)`、`粗利率`、案件サマリー、キット化材料原価、ダッシュボード粗利集計が同じ計算関数を使う。
 ## 2026-05-13 Supabase connectivity fallback
 - If the configured Supabase project endpoint cannot be reached during the main transaction grid load, the prototype now displays the bundled `src/gcga_data.json` sample rows instead of leaving the grid blank.
 - The bundled sample fallback is limited to Vite development mode (`import.meta.env.DEV`) so production builds do not silently replace live data with sample data.

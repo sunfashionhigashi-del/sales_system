@@ -99,6 +99,10 @@
 - 月初にMURCの過去相場ページからExcelを取得し、前月末までのUSD公表レートを `MUFG実為替` に取り込みます。
 - 休日や銀行休業日のBL DATEは、前営業日の公表レートを使います。画面上では `previous_business_date` に実際に参照した営業日が残ります。
 - 御社のUSD優遇は、販売が `TTB + 0.50円`、仕入が `TTS - 0.50円` です。公表レートそのものは変更せず、`優遇レート` 側で別管理します。
+## 追記: 為替マスターを使った粗利計算
+- `BL DATE` が入力され、その日の為替マスターが登録されている場合、システムは自動で公表TTB/TTSと優遇レートを使って粗利を計算します。
+- USD販売は `TTB + 0.50円`、USD仕入は `TTS - 0.50円` で円換算します。
+- 為替マスターがまだ無い日付は、従来どおり `実勢為替` の手入力値、または `社内採算為替` を使って計算します。
 ## 2026-05-13 Supabase offline sample display
 - When the Supabase database endpoint is unavailable in the local Vite development environment, the main grid may show bundled sample data so the prototype UI can still be reviewed.
 - In this state, the grid displays `Dev only: Supabase offline, showing bundled sample data`. Data shown under this banner is not live database data.

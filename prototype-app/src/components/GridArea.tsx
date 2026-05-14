@@ -9,6 +9,15 @@ import { supabase } from '../lib/supabase'
 import OrderDetailModal from './OrderDetailModal'
 import { Database, FilterX } from 'lucide-react'
 import localSampleRows from '../gcga_data.json'
+import {
+  fetchExchangeRateState,
+  getAppliedRate,
+  getLineCostJPY,
+  getLineProfitJPY,
+  getLineSalesJPY,
+  toNumber,
+  type ExchangeRateState,
+} from '../lib/exchangeRates'
 
 interface GridAreaProps {
   activeTab: string;
@@ -130,44 +139,14 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   const [redoStack, setRedoStack] = useState<any[]>([])
 
   const [itemMasterDB, setItemMasterDB] = useState<any>({});
-
-  const toNumber = (value: any) => {
-     const n = typeof value === 'number' ? value : parseFloat(String(value ?? '').replace(/,/g, ''));
-     return isNaN(n) ? 0 : n;
-  };
-
-  const getRateForRow = (data: any) => {
-     const isDomestic = data?.cost_currency === 'JPY' && data?.sales_currency === 'JPY';
-     if (isDomestic) return 1.0;
-     return data?.bl_date && data?.exchange_rate ? toNumber(data.exchange_rate) : (toNumber(data?.internal_rate) || 145.0);
-  };
+  const [exchangeRateState, setExchangeRateState] = useState<ExchangeRateState>({
+     rates: [],
+     adjustments: [],
+     rateMap: new Map(),
+  });
 
   const getLineProfit = (data: any) => {
-     const qty = toNumber(data?.qty);
-     const salesPrice = toNumber(data?.sales_price);
-     const costPrice = toNumber(data?.cost_price);
-     if (!qty || !salesPrice || !costPrice) return null;
-     const rate = getRateForRow(data);
-     const salesJPY = data?.sales_currency === 'JPY' ? salesPrice : salesPrice * rate;
-     const costJPY = data?.cost_currency === 'JPY' ? costPrice : costPrice * rate;
-     const miscJPY = toNumber(data?.misc_cost);
-     return (salesJPY * qty) - (costJPY * qty) - miscJPY;
-  };
-
-  const getLineSalesJPY = (data: any) => {
-     const qty = toNumber(data?.qty);
-     const salesPrice = toNumber(data?.sales_price);
-     if (!qty || !salesPrice) return 0;
-     const rate = getRateForRow(data);
-     return (data?.sales_currency === 'JPY' ? salesPrice : salesPrice * rate) * qty;
-  };
-
-  const getLineCostJPY = (data: any) => {
-     const qty = toNumber(data?.qty);
-     const costPrice = toNumber(data?.cost_price);
-     if (!qty || !costPrice) return 0;
-     const rate = getRateForRow(data);
-     return (data?.cost_currency === 'JPY' ? costPrice : costPrice * rate) * qty;
+     return getLineProfitJPY(data, exchangeRateState);
   };
 
   const getDealKey = (data: any) => data?.order_no || data?.quote_no || data?.customer_po || data?.invoice_no || null;
@@ -183,19 +162,22 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   }, [rowData, selectedRows]);
 
   const dealSummary = useMemo(() => {
-     const sales = summaryRows.reduce((sum, row) => sum + getLineSalesJPY(row), 0);
-     const cost = summaryRows.reduce((sum, row) => sum + getLineCostJPY(row), 0);
+     const sales = summaryRows.reduce((sum, row) => sum + getLineSalesJPY(row, exchangeRateState), 0);
+     const cost = summaryRows.reduce((sum, row) => sum + getLineCostJPY(row, exchangeRateState), 0);
      const misc = summaryRows.reduce((sum, row) => sum + toNumber(row?.misc_cost), 0);
      const profit = summaryRows.reduce((sum, row) => sum + (getLineProfit(row) ?? 0), 0);
      const margin = sales > 0 ? (profit / sales) * 100 : null;
      const key = selectedRows.length === 1 ? getDealKey(selectedRows[0]) : null;
      return { key, rows: summaryRows.length, sales, cost, misc, profit, margin };
-  }, [selectedRows, summaryRows]);
+  }, [selectedRows, summaryRows, exchangeRateState]);
   
   useEffect(() => {
      const fetchMaster = async () => {
-         const { data: products } = await supabase.from('products').select('*');
-         const { data: prices } = await supabase.from('product_prices').select('*');
+         const [{ data: products }, { data: prices }, exchangeRates] = await Promise.all([
+             supabase.from('products').select('*'),
+             supabase.from('product_prices').select('*'),
+             fetchExchangeRateState(),
+         ]);
          
          if (products && prices) {
              const db: any = {};
@@ -214,6 +196,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
              });
              setItemMasterDB(db);
          }
+         setExchangeRateState(exchangeRates);
      };
      fetchMaster();
   }, []);
@@ -357,8 +340,6 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
 
       let totalCostJpy = 0;
       // 仮の固定TTS
-      const baseRateTTS = 145; 
-      const appliedTTS = baseRateTTS - 0.5;
 
       for (let node of selectedNodes) {
          if (node.data.locked) {
@@ -367,7 +348,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
          }
          let cCost = parseFloat(node.data.cost_price) || 0;
          let q = parseFloat(node.data.qty) || 0;
-         let itemCostJPY = node.data.cost_currency === 'JPY' ? cCost : cCost * appliedTTS;
+         let itemCostJPY = cCost * getAppliedRate(node.data, 'cost', exchangeRateState);
          totalCostJpy += (itemCostJPY * q);
       }
 
@@ -1184,18 +1165,8 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                { headerName: "粗利(円)", field: "gross_profit", editable: false, width: 95, type: 'numericColumn',
                  headerTooltip: "粗利（円換算）。BL日付入力で自動的に実勢為替に切り替わり計算",
                  valueGetter: (params: any) => {
-                     if (!params.data.sales_price || !params.data.qty || !params.data.cost_price) return null;
-                     const isDomestic = params.data.cost_currency === 'JPY' && params.data.sales_currency === 'JPY';
-                     let isFinalized = Boolean(params.data.bl_date && params.data.exchange_rate);
-                     let baseRate = 1.0;
-                     if (!isDomestic) {
-                         baseRate = isFinalized ? params.data.exchange_rate : (params.data.internal_rate || 145.0);
-                     }
-                     const qty = params.data.qty;
-                     let salesJPY = params.data.sales_currency === 'JPY' ? params.data.sales_price : params.data.sales_price * baseRate;
-                     let costJPY = params.data.cost_currency === 'JPY' ? params.data.cost_price : params.data.cost_price * baseRate;
-                     let miscJPY = params.data.misc_cost || 0;
-                     const gp = (salesJPY * qty) - (costJPY * qty) - miscJPY;
+                     const gp = getLineProfitJPY(params.data, exchangeRateState);
+                     if (gp === null) return null;
                      return Math.floor(gp);
                  },
                  valueFormatter: numFmt,
@@ -1204,20 +1175,10 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                { headerName: "粗利率", field: "gross_margin", editable: false, width: 85, type: 'numericColumn',
                  headerTooltip: "粗利額 ÷ [販売]合計金額",
                  valueGetter: (params: any) => {
-                     if (!params.data.sales_price || !params.data.qty || !params.data.cost_price) return null;
-                     const isDomestic = params.data.cost_currency === 'JPY' && params.data.sales_currency === 'JPY';
-                     let isFinalized = Boolean(params.data.bl_date && params.data.exchange_rate);
-                     let baseRate = 1.0;
-                     if (!isDomestic) {
-                         baseRate = isFinalized ? params.data.exchange_rate : (params.data.internal_rate || 145.0);
-                     }
-                     const qty = params.data.qty;
-                     let salesJPY = params.data.sales_currency === 'JPY' ? params.data.sales_price : params.data.sales_price * baseRate;
-                     let costJPY = params.data.cost_currency === 'JPY' ? params.data.cost_price : params.data.cost_price * baseRate;
-                     let miscJPY = params.data.misc_cost || 0;
-                     const salesTotalJPY = salesJPY * qty;
+                     const salesTotalJPY = getLineSalesJPY(params.data, exchangeRateState);
                      if (salesTotalJPY === 0) return null;
-                     const gp = salesTotalJPY - (costJPY * qty) - miscJPY;
+                     const gp = getLineProfitJPY(params.data, exchangeRateState);
+                     if (gp === null) return null;
                      const margin = (gp / salesTotalJPY) * 100;
                      return margin.toFixed(1) + '%';
                  },
@@ -1288,7 +1249,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         }
     }
     return applyGridView(rawCols);
-  }, [activeTab, gridViewMode]);
+  }, [activeTab, gridViewMode, exchangeRateState]);
 
   const defaultColDef = useMemo(() => ({
     resizable: true,
@@ -1386,6 +1347,9 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
 
      if (gridRef.current?.api && colId === 'status') {
         gridRef.current.api.onFilterChanged()
+     }
+     if (params.api && ['bl_date', 'cost_currency', 'sales_currency', 'cost_price', 'sales_price', 'qty', 'internal_rate', 'exchange_rate', 'misc_cost'].includes(colId)) {
+        params.api.refreshCells({ rowNodes: [params.node], columns: ['gross_profit', 'gross_margin'], force: true })
      }
   }, [captureSnapshot, itemMasterDB])
 

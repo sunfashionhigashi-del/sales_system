@@ -150,3 +150,10 @@ React 環境のコンポーネントにおける「行分割」「加工・セ�
 - **Implementation:** Added `prototype-app/scripts/import_murc_usd_rates.py`, which reads the MURC `.xls` `data` sheet and imports USD `TTB`/`TTS` rows into `mufg_exchange_rates`. Non-business BL DATEs are stored with the previous business day's rate and `previous_business_date` populated.
 - **DB update:** Imported 116 USD rows for 2026-01-05 through 2026-04-30 into Supabase: 79 published business-day rows and 37 non-business-day carry-forward rows.
 - **Preferential rule:** Added the USD standard preferential adjustment rule in `exchange_rate_adjustments`: sales use `TTB + 0.50`, purchases use `TTS - 0.50`, effective from 2026-01-01.
+
+## 17. 2026-05-14 Exchange-rate calculation integration
+- **Implementation:** Added shared exchange calculation helpers in `prototype-app/src/lib/exchangeRates.ts` and connected them to `GridArea` and `DashboardArea`.
+- **Grid behavior:** Gross profit, gross margin, deal summary, and kit-row material costing now use exchange master rates when `BL DATE` is present. Sales use TTB plus the active preferential adjustment; costs use TTS plus the active preferential adjustment.
+- **Fallback behavior:** If a BL DATE has no matching master rate, the calculation falls back to the existing manual `exchange_rate`, then `internal_rate`, then 145.
+- **Dashboard:** Rebuilt the dashboard text as clean Japanese and switched profit aggregation to the same shared calculation helper.
+- **Verification:** `npm.cmd run build` completed successfully. Manual calculation spot check for 2026-04-30 USD produced sales rate `159.89`, cost rate `160.89`.
