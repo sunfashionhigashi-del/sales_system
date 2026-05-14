@@ -106,3 +106,8 @@ If any logic, UI, or architecture is updated in the codebase during a session, t
 - **優遇レート:** MUFG基準レートに対する優遇幅は `exchange_rate_adjustments` で後から設定できるようにする。販売先・仕入先・通貨・期間・優先度を持たせ、適用TTB/TTSを算出する。
 - **自動取得:** MUFGの公表為替ページ（例: https://www.bk.mufg.jp/ippan/kinri/list_j/kinri/kawase.html ）を毎営業日または毎日ジョブで取得し、`mufg_exchange_rates` に蓄積する設計とする。実装はSupabase Edge Function + スケジュール実行を想定する。
 - **今回の追加:** マスター画面に `年度採算為替`、`MUFG実為替`、`優遇レート` の管理タブを追加し、DB追加用SQL `prototype-app/exchange_rate_schema.sql` を作成した。
+## 2026-05-13 Supabase connectivity fallback
+- If the configured Supabase project endpoint cannot be reached during the main transaction grid load, the prototype now displays the bundled `src/gcga_data.json` sample rows instead of leaving the grid blank.
+- The bundled sample fallback is limited to Vite development mode (`import.meta.env.DEV`) so production builds do not silently replace live data with sample data.
+- The fallback is read-only from a persistence perspective: explicit Save still attempts to write to Supabase and will fail until a valid `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are configured.
+- The grid shows a small `Dev only: Supabase offline, showing bundled sample data` indicator while this fallback is active, so operators can distinguish sample data from live database data.

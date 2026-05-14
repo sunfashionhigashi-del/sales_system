@@ -137,3 +137,9 @@ React 環境のコンポーネントにおける「行分割」「加工・セ�
 - **DB:** 追加テーブル用のSQL `prototype-app/exchange_rate_schema.sql` を新規作成。`annual_exchange_rates`、`mufg_exchange_rates`、`exchange_rate_adjustments` を定義。
 - **設計メモ:** MUFG公表レートの自動取得はフロントではなく、Supabase Edge Function等のサーバーサイド定期ジョブで実装する想定。販売換算はTTB、仕入換算はTTS。
 - **DB反映:** `prototype-app/exchange_rate_schema.sql` をSupabase本番プロジェクトへ適用済み。`annual_exchange_rates`、`mufg_exchange_rates`、`exchange_rate_adjustments` の3テーブルがREST APIから参照可能であることを確認。
+## 15. 2026-05-13 Supabase connection diagnosis and fallback
+- Confirmed the Vite app was running on `http://localhost:4173/`, but Supabase reads failed with `TypeError: Failed to fetch`.
+- Verified that generic `supabase.co` DNS and HTTPS access worked, while the configured project host did not resolve (`ENOTFOUND` / remote name could not be resolved). This indicates the current Supabase project URL is not reachable from the local environment.
+- Updated `GridArea` so the main transaction grid falls back to bundled `gcga_data.json` sample rows when the Supabase read fails. The fallback is labeled in the UI and does not change the manual Supabase Save behavior.
+- Follow-up decision: keep the sample-data fallback for development only. `GridArea` now gates the fallback behind `import.meta.env.DEV`; production builds show no silent sample replacement when Supabase is unavailable.
+- Cleaned handover/runbook notes for the Codex transition: rewrote `HANDOVER.md` and `RUN_PROTOTYPE.md` in readable form without embedded credentials, and removed the redundant temporary `repo_understanding_20260513.md` memo.

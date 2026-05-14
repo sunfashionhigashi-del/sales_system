@@ -95,3 +95,8 @@
 - `MUFG実為替` は、BL DATE基準で採算を確定するための公表TTB/TTSを蓄積する場所です。BL DATEが休日の場合は前営業日のレートを使う前提です。
 - `優遇レート` は、MUFG基準レートに対する優遇幅を後から設定する場所です。
 - 実運用では、販売はTTB、仕入はTTSで換算します。
+## 2026-05-13 Supabase offline sample display
+- When the Supabase database endpoint is unavailable in the local Vite development environment, the main grid may show bundled sample data so the prototype UI can still be reviewed.
+- In this state, the grid displays `Dev only: Supabase offline, showing bundled sample data`. Data shown under this banner is not live database data.
+- Production builds do not silently replace unavailable Supabase data with bundled sample data.
+- To restore live database display and Save behavior, update `prototype-app/.env.local` with an active Supabase project URL and anon/publishable key, then restart the Vite dev server.

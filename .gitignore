@@ -5,3 +5,4 @@ prototype-app/dist/
 .DS_Store
 .env*
 !prototype-app/.env.local
+prototype-app/vite-dev*.log

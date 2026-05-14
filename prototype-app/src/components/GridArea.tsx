@@ -8,6 +8,7 @@ ModuleRegistry.registerModules([AllCommunityModule, AllEnterpriseModule])
 import { supabase } from '../lib/supabase'
 import OrderDetailModal from './OrderDetailModal'
 import { Database, FilterX } from 'lucide-react'
+import localSampleRows from '../gcga_data.json'
 
 interface GridAreaProps {
   activeTab: string;
@@ -734,6 +735,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   const [page, setPage] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [dataSourceStatus, setDataSourceStatus] = useState<'supabase' | 'local-fallback' | null>(null);
   const PAGE_SIZE = 100;
 
   const buildBaseQuery = (withCount = false) => {
@@ -760,6 +762,33 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
       return query;
   };
 
+  const getLocalFallbackRows = useCallback(() => {
+      return (localSampleRows as any[]).filter(row => {
+          if (session?.user?.role_id !== 'admin' && session?.user?.name && row.rep) {
+              if (row.rep !== session.user.name) return false;
+          }
+          return true;
+      });
+  }, [session]);
+
+  const useLocalFallbackRows = useCallback((reason: unknown) => {
+      console.error('Supabase unavailable:', reason);
+      if (!import.meta.env.DEV) {
+          setRowData([]);
+          setPage(0);
+          setTotalCount(0);
+          setHasMore(false);
+          setDataSourceStatus(null);
+          return;
+      }
+      const fallbackRows = getLocalFallbackRows();
+      setRowData(fallbackRows);
+      setPage(1);
+      setTotalCount(fallbackRows.length);
+      setHasMore(false);
+      setDataSourceStatus('local-fallback');
+  }, [getLocalFallbackRows]);
+
   useEffect(() => {
      fetchData();
   }, [activeTab]);
@@ -772,15 +801,16 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
       const { data, error, count } = await query;
       
       if (error) {
-        console.error('Supabase fetch error:', error)
+        useLocalFallbackRows(error)
       } else {
         setRowData(data || [])
         setPage(1);
         if (count !== null) setTotalCount(count);
         setHasMore((data?.length || 0) === PAGE_SIZE);
+        setDataSourceStatus('supabase');
       }
     } catch (e) {
-      console.error('Fetch exception:', e)
+      useLocalFallbackRows(e)
     } finally {
       setIsLoading(false);
     }
@@ -806,6 +836,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
           }
       } catch (e) {
           console.error("Load more error:", e);
+          setHasMore(false);
       } finally {
           setIsLoading(false);
       }
@@ -1406,6 +1437,11 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
              <FilterX size={14} className="mr-1.5" />
              列フィルター中: {activeFilterCount}件
          </button>
+      )}
+      {dataSourceStatus === 'local-fallback' && (
+         <div className="absolute top-3 left-4 z-50 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 shadow-sm">
+             Dev only: Supabase offline, showing bundled sample data
+         </div>
       )}
       {totalCount !== null && (
          <div className="absolute bottom-6 right-6 z-50 bg-slate-800/90 backdrop-blur-sm text-white px-4 py-2 rounded-full shadow-xl border border-slate-700/50 flex items-center pointer-events-none">
