@@ -164,3 +164,9 @@ React 環境のコンポーネントにおける「行分割」「加工・セ�
 - **Annual budget rate:** Seeded Supabase `annual_exchange_rates` with 2026 USD budget rate `145` for provisional profitability checks.
 - **Daily import:** Added `prototype-app/scripts/import_mufg_daily_usd_rate.py`, which imports USD TTS/TTB from MUFG's official daily CSV and upserts `mufg_exchange_rates`. Imported the 2026-05-14 USD row: TTS `158.89`, TTB `156.89`.
 - **Verification:** `npm.cmd run build`, `npx.cmd eslint src/lib/exchangeRates.ts`, and Python bytecode checks for exchange import scripts completed successfully.
+
+## 19. 2026-05-14 Exchange-rate fallback guard
+- **Issue:** When a future BL DATE such as 2026-05-15 had no exchange master row, some rows carried `exchange_rate=1` from JPY/domestic defaults. USD purchase rows then incorrectly showed applied exchange rate `1`.
+- **Fix:** For non-JPY currencies, `exchange_rate` is treated as a usable manual final rate only when it is greater than `1`. If it is `1` or blank, the calculation falls back to `internal_rate`, then annual budget rate, then default 145.
+- **UI:** Consolidated the exchange status label function so `為替状態` displays readable Japanese labels such as `未確定: 年度採算為替を使用`.
+- **Verification:** `npm.cmd run build` and `npx.cmd eslint src/lib/exchangeRates.ts` completed successfully.

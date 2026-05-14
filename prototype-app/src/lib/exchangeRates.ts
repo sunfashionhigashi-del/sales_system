@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+﻿import { supabase } from './supabase'
 
 export type ExchangeRateRow = {
   rate_date: string
@@ -187,7 +187,7 @@ export const getAppliedRateDetail = (
     }
 
     const manualFinalRate = toNumber(data?.exchange_rate)
-    if (manualFinalRate) {
+    if (manualFinalRate > 1) {
       return {
         side,
         currency,
@@ -250,7 +250,7 @@ export const getAppliedRate = (
   return getAppliedRateDetail(data, side, state).appliedRate
 }
 
-export const getExchangeRateStatus = (data: OrderLike, state: ExchangeRateState) => {
+export const getExchangeRateStatusLabel = (data: OrderLike, state: ExchangeRateState) => {
   const sales = getAppliedRateDetail(data, 'sales', state)
   const cost = getAppliedRateDetail(data, 'cost', state)
   const details = [sales, cost].filter((item) => item.currency !== 'JPY')
