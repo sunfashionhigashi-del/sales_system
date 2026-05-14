@@ -95,6 +95,10 @@
 - `MUFG実為替` は、BL DATE基準で採算を確定するための公表TTB/TTSを蓄積する場所です。BL DATEが休日の場合は前営業日のレートを使う前提です。
 - `優遇レート` は、MUFG基準レートに対する優遇幅を後から設定する場所です。
 - 実運用では、販売はTTB、仕入はTTSで換算します。
+## 追記: MURC月次為替データ
+- 月初にMURCの過去相場ページからExcelを取得し、前月末までのUSD公表レートを `MUFG実為替` に取り込みます。
+- 休日や銀行休業日のBL DATEは、前営業日の公表レートを使います。画面上では `previous_business_date` に実際に参照した営業日が残ります。
+- 御社のUSD優遇は、販売が `TTB + 0.50円`、仕入が `TTS - 0.50円` です。公表レートそのものは変更せず、`優遇レート` 側で別管理します。
 ## 2026-05-13 Supabase offline sample display
 - When the Supabase database endpoint is unavailable in the local Vite development environment, the main grid may show bundled sample data so the prototype UI can still be reviewed.
 - In this state, the grid displays `Dev only: Supabase offline, showing bundled sample data`. Data shown under this banner is not live database data.

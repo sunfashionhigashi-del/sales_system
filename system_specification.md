@@ -106,6 +106,11 @@ If any logic, UI, or architecture is updated in the codebase during a session, t
 - **優遇レート:** MUFG基準レートに対する優遇幅は `exchange_rate_adjustments` で後から設定できるようにする。販売先・仕入先・通貨・期間・優先度を持たせ、適用TTB/TTSを算出する。
 - **自動取得:** MUFGの公表為替ページ（例: https://www.bk.mufg.jp/ippan/kinri/list_j/kinri/kawase.html ）を毎営業日または毎日ジョブで取得し、`mufg_exchange_rates` に蓄積する設計とする。実装はSupabase Edge Function + スケジュール実行を想定する。
 - **今回の追加:** マスター画面に `年度採算為替`、`MUFG実為替`、`優遇レート` の管理タブを追加し、DB追加用SQL `prototype-app/exchange_rate_schema.sql` を作成した。
+## 15. 2026-05-14 MURC月次Excel取り込み方針
+- **運用方針:** 為替はまず手動マスター/Excel取り込み方式で安定運用し、自動取得は後続フェーズで追加する。公式ソースはMURC過去相場ページ（https://www.murc-kawasesouba.jp/fx/past_3month.php ）とMUFG銀行の日次相場ページ（https://www.bk.mufg.jp/ippan/kinri/list_j/kinri/kawase.html ）を使う。
+- **MURC Excel:** 月初に前月末までの相場を含むExcelを取得し、`data` シートのUSD `TTS` / `TTB` を `mufg_exchange_rates` へ投入する。営業日レートは公表値のまま保存し、休日・銀行休業日は前営業日の公表値をコピーして `is_business_day=false`、`previous_business_date` に参照元営業日を保存する。
+- **USD優遇:** 公表レート自体は変更せず、御社のUSD優遇は `exchange_rate_adjustments` に保持する。販売換算は `TTB + 0.50`、仕入換算は `TTS - 0.50` として適用する。
+- **補助ツール:** `prototype-app/scripts/import_murc_usd_rates.py` を追加し、ローカルのMURC `.xls` からUSD日次レートとUSD標準優遇ルールをSupabaseへ投入できるようにした。秘密鍵は `.env.admin.local` から読み取り、コードやログには保存しない。
 ## 2026-05-13 Supabase connectivity fallback
 - If the configured Supabase project endpoint cannot be reached during the main transaction grid load, the prototype now displays the bundled `src/gcga_data.json` sample rows instead of leaving the grid blank.
 - The bundled sample fallback is limited to Vite development mode (`import.meta.env.DEV`) so production builds do not silently replace live data with sample data.

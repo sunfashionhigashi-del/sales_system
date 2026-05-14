@@ -143,3 +143,10 @@ React 環境のコンポーネントにおける「行分割」「加工・セ�
 - Updated `GridArea` so the main transaction grid falls back to bundled `gcga_data.json` sample rows when the Supabase read fails. The fallback is labeled in the UI and does not change the manual Supabase Save behavior.
 - Follow-up decision: keep the sample-data fallback for development only. `GridArea` now gates the fallback behind `import.meta.env.DEV`; production builds show no silent sample replacement when Supabase is unavailable.
 - Cleaned handover/runbook notes for the Codex transition: rewrote `HANDOVER.md` and `RUN_PROTOTYPE.md` in readable form without embedded credentials, and removed the redundant temporary `repo_understanding_20260513.md` memo.
+
+## 16. 2026-05-14 MURC USD exchange-rate import
+- **Decision:** Start exchange-rate operations with manual master/Excel import first, then add automatic fetching later.
+- **Source:** MURC monthly Excel from the past-rate page is used for confirmed historical rates through the previous month. MUFG's daily public page remains the source for later daily automation/current-day checks.
+- **Implementation:** Added `prototype-app/scripts/import_murc_usd_rates.py`, which reads the MURC `.xls` `data` sheet and imports USD `TTB`/`TTS` rows into `mufg_exchange_rates`. Non-business BL DATEs are stored with the previous business day's rate and `previous_business_date` populated.
+- **DB update:** Imported 116 USD rows for 2026-01-05 through 2026-04-30 into Supabase: 79 published business-day rows and 37 non-business-day carry-forward rows.
+- **Preferential rule:** Added the USD standard preferential adjustment rule in `exchange_rate_adjustments`: sales use `TTB + 0.50`, purchases use `TTS - 0.50`, effective from 2026-01-01.
