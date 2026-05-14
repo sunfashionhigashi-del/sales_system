@@ -103,6 +103,11 @@
 - `BL DATE` が入力され、その日の為替マスターが登録されている場合、システムは自動で公表TTB/TTSと優遇レートを使って粗利を計算します。
 - USD販売は `TTB + 0.50円`、USD仕入は `TTS - 0.50円` で円換算します。
 - 為替マスターがまだ無い日付は、従来どおり `実勢為替` の手入力値、または `社内採算為替` を使って計算します。
+## 追記: 適用為替の確認
+- `採算詳細` ビューでは、`販売適用`、`仕入適用`、`為替状態` を確認できます。
+- `為替状態` には、為替マスターを使った日付、休日補完時の参照営業日、または手入力/社内採算/年度採算/既定値のどれを使ったかが表示されます。
+- 2026年USDの年度採算為替は初期値として `145` を登録済みです。正式な社内レートが決まったら、`マスター` 画面の `年度採算為替` で変更できます。
+- 当日分のUSD日次レートは、MUFG公式CSVから取り込める補助スクリプトを用意しています。
 ## 2026-05-13 Supabase offline sample display
 - When the Supabase database endpoint is unavailable in the local Vite development environment, the main grid may show bundled sample data so the prototype UI can still be reviewed.
 - In this state, the grid displays `Dev only: Supabase offline, showing bundled sample data`. Data shown under this banner is not live database data.

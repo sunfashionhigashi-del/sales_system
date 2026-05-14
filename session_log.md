@@ -157,3 +157,10 @@ React 環境のコンポーネントにおける「行分割」「加工・セ�
 - **Fallback behavior:** If a BL DATE has no matching master rate, the calculation falls back to the existing manual `exchange_rate`, then `internal_rate`, then 145.
 - **Dashboard:** Rebuilt the dashboard text as clean Japanese and switched profit aggregation to the same shared calculation helper.
 - **Verification:** `npm.cmd run build` completed successfully. Manual calculation spot check for 2026-04-30 USD produced sales rate `159.89`, cost rate `160.89`.
+
+## 18. 2026-05-14 Exchange-rate visibility and daily MUFG import
+- **Visibility:** Added `販売適用`, `仕入適用`, and `為替状態` columns to the margin/detail grid view. These show the applied sales/cost rates and whether the calculation used the exchange master, a previous business day, manual final rate, internal rate, annual budget rate, or default 145.
+- **BL DATE helper behavior:** Editing BL DATE or price/currency/rate fields refreshes gross profit, gross margin, applied rate columns, and exchange status immediately.
+- **Annual budget rate:** Seeded Supabase `annual_exchange_rates` with 2026 USD budget rate `145` for provisional profitability checks.
+- **Daily import:** Added `prototype-app/scripts/import_mufg_daily_usd_rate.py`, which imports USD TTS/TTB from MUFG's official daily CSV and upserts `mufg_exchange_rates`. Imported the 2026-05-14 USD row: TTS `158.89`, TTB `156.89`.
+- **Verification:** `npm.cmd run build`, `npx.cmd eslint src/lib/exchangeRates.ts`, and Python bytecode checks for exchange import scripts completed successfully.

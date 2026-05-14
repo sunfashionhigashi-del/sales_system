@@ -11,6 +11,8 @@ import { Database, FilterX } from 'lucide-react'
 import localSampleRows from '../gcga_data.json'
 import {
   fetchExchangeRateState,
+  getAppliedRateDetail,
+  getExchangeRateStatus,
   getAppliedRate,
   getLineCostJPY,
   getLineProfitJPY,
@@ -142,6 +144,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   const [exchangeRateState, setExchangeRateState] = useState<ExchangeRateState>({
      rates: [],
      adjustments: [],
+     annualRates: [],
      rateMap: new Map(),
   });
 
@@ -1001,6 +1004,9 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
             'sales_total',
             'internal_rate',
             'exchange_rate',
+            'applied_sales_rate',
+            'applied_cost_rate',
+            'exchange_rate_status',
             'misc_currency',
             'misc_cost',
             'markup_rate',
@@ -1131,6 +1137,20 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                  headerTooltip: "BL確定後の実勢為替レート",
                  valueFormatter: numFmt,
                  cellStyle: (p: any) => p.data.cost_currency !== 'JPY' || p.data.sales_currency !== 'JPY' ? { backgroundColor: '#eff6ff', color: '#1e3a8a'} : { backgroundColor: '#f1f5f9', color: '#94a3b8' } },
+               { headerName: "販売適用", colId: "applied_sales_rate", field: "applied_sales_rate", editable: false, width: 95, type: 'numericColumn',
+                 headerTooltip: "販売換算に使う適用レート。BL DATE一致時はTTB+優遇、未確定時は採算為替。",
+                 valueGetter: (params: any) => getAppliedRateDetail(params.data, 'sales', exchangeRateState).appliedRate,
+                 valueFormatter: numFmt,
+                 cellStyle: { backgroundColor: '#f1f5f9', color: '#1e3a8a', fontWeight: 'bold' } },
+               { headerName: "仕入適用", colId: "applied_cost_rate", field: "applied_cost_rate", editable: false, width: 95, type: 'numericColumn',
+                 headerTooltip: "仕入換算に使う適用レート。BL DATE一致時はTTS+優遇、未確定時は採算為替。",
+                 valueGetter: (params: any) => getAppliedRateDetail(params.data, 'cost', exchangeRateState).appliedRate,
+                 valueFormatter: numFmt,
+                 cellStyle: { backgroundColor: '#f1f5f9', color: '#92400e', fontWeight: 'bold' } },
+               { headerName: "為替状態", colId: "exchange_rate_status", field: "exchange_rate_status", editable: false, width: 190,
+                 headerTooltip: "為替マスターの参照日、休日補完、またはフォールバック元を表示します。",
+                 valueGetter: (params: any) => getExchangeRateStatus(params.data, exchangeRateState),
+                 cellStyle: { backgroundColor: '#f8fafc', color: '#475569' } },
                { headerName: "[経費] 通貨", field: "misc_currency", editable: true, width: 95,
                  cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] } },
                { headerName: "[経費] 金額", field: "misc_cost", editable: true, width: 95, type: 'numericColumn',
@@ -1349,7 +1369,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         gridRef.current.api.onFilterChanged()
      }
      if (params.api && ['bl_date', 'cost_currency', 'sales_currency', 'cost_price', 'sales_price', 'qty', 'internal_rate', 'exchange_rate', 'misc_cost'].includes(colId)) {
-        params.api.refreshCells({ rowNodes: [params.node], columns: ['gross_profit', 'gross_margin'], force: true })
+        params.api.refreshCells({ rowNodes: [params.node], columns: ['gross_profit', 'gross_margin', 'applied_sales_rate', 'applied_cost_rate', 'exchange_rate_status'], force: true })
      }
   }, [captureSnapshot, itemMasterDB])
 

@@ -116,6 +116,11 @@ If any logic, UI, or architecture is updated in the codebase during a session, t
 - **BL DATE確定後:** `BL DATE` と通貨に一致する `mufg_exchange_rates` が存在する場合、販売は `ttb_rate + preferential_ttb_adjustment`、仕入は `tts_rate + preferential_tts_adjustment` で換算する。
 - **未確定・未登録日:** `BL DATE` が未入力、または該当日の為替マスターが未登録の場合は、既存運用どおり `exchange_rate` 手入力値、なければ `internal_rate`、さらに未入力なら `145` をフォールバックとして使う。
 - **表示範囲:** グリッドの `粗利(円)`、`粗利率`、案件サマリー、キット化材料原価、ダッシュボード粗利集計が同じ計算関数を使う。
+## 17. 2026-05-14 為替計算の見える化と日次取り込み
+- **採算詳細ビュー:** `販売適用`、`仕入適用`、`為替状態` の表示列を追加。BL DATEが為替マスターに一致する場合は適用済みTTB/TTS優遇後レートと参照日を表示する。休日補完行では参照元営業日も表示する。
+- **BL DATE補助:** BL DATE、通貨、単価、採算為替、実勢為替、経費が変更された場合、粗利・粗利率・適用レート・為替状態を即時再計算する。為替マスター未登録日は、手入力実勢為替、社内採算為替、年度採算為替、既定145の順で状態表示する。
+- **年度採算為替:** 2026年USDの年度採算為替として `annual_exchange_rates` に `145` を登録。未確定段階で `internal_rate` が空の場合の採算確認に使う。
+- **MUFG日次:** `prototype-app/scripts/import_mufg_daily_usd_rate.py` を追加。MUFG公式CSV `https://www.bk.mufg.jp/gdocs/kinri/list_j/kinri/spot_rate.csv` からUSD日次TTS/TTBを取得し、`mufg_exchange_rates` にupsertする。
 ## 2026-05-13 Supabase connectivity fallback
 - If the configured Supabase project endpoint cannot be reached during the main transaction grid load, the prototype now displays the bundled `src/gcga_data.json` sample rows instead of leaving the grid blank.
 - The bundled sample fallback is limited to Vite development mode (`import.meta.env.DEV`) so production builds do not silently replace live data with sample data.

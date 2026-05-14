@@ -21,17 +21,39 @@ export type ExchangeRateAdjustment = {
   is_active?: boolean | null
 }
 
+export type AnnualExchangeRate = {
+  fiscal_year: number | string
+  currency: string
+  budget_rate: number | string
+  effective_from: string
+  effective_to: string
+}
+
 export type ExchangeRateState = {
   rates: ExchangeRateRow[]
   adjustments: ExchangeRateAdjustment[]
+  annualRates: AnnualExchangeRate[]
   rateMap?: Map<string, ExchangeRateRow>
 }
 
 type RateSide = 'sales' | 'cost'
+type RateSource = 'master' | 'manual-final' | 'annual-budget' | 'internal' | 'default' | 'domestic'
 
 const DEFAULT_RATE = 145
 
 type OrderLike = Record<string, unknown>
+
+export type AppliedRateDetail = {
+  side: RateSide
+  currency: string
+  appliedRate: number
+  baseRate: number
+  adjustment: number
+  source: RateSource
+  rateDate: string
+  referenceDate: string
+  isBusinessDay?: boolean | null
+}
 
 export const toNumber = (value: unknown) => {
   const n = typeof value === 'number' ? value : parseFloat(String(value ?? '').replace(/,/g, ''))
@@ -51,7 +73,7 @@ export const normalizeDate = (value: unknown) => {
 }
 
 export const fetchExchangeRateState = async (): Promise<ExchangeRateState> => {
-  const [{ data: rates }, { data: adjustments }] = await Promise.all([
+  const [{ data: rates }, { data: adjustments }, { data: annualRates }] = await Promise.all([
     supabase
       .from('mufg_exchange_rates')
       .select('rate_date,currency,ttb_rate,tts_rate,previous_business_date,is_business_day'),
@@ -60,11 +82,15 @@ export const fetchExchangeRateState = async (): Promise<ExchangeRateState> => {
       .select('currency,customer_code,supplier_code,preferential_ttb_adjustment,preferential_tts_adjustment,effective_from,effective_to,priority,is_active')
       .eq('is_active', true)
       .order('priority', { ascending: true }),
+    supabase
+      .from('annual_exchange_rates')
+      .select('fiscal_year,currency,budget_rate,effective_from,effective_to'),
   ])
 
   return {
     rates: rates ?? [],
     adjustments: adjustments ?? [],
+    annualRates: annualRates ?? [],
     rateMap: buildExchangeRateMap(rates ?? []),
   }
 }
@@ -97,13 +123,43 @@ const adjustmentApplies = (
   return true
 }
 
-export const getAppliedRate = (
+const resolveBudgetDate = (data: OrderLike) =>
+  normalizeDate(data?.bl_date) || normalizeDate(data?.order_date) || new Date().toISOString().slice(0, 10)
+
+const findAnnualRate = (data: OrderLike, side: RateSide, state: ExchangeRateState) => {
+  const currency = normalizeCurrency(side === 'sales' ? data?.sales_currency : data?.cost_currency)
+  const targetDate = resolveBudgetDate(data)
+  const targetYear = Number(targetDate.slice(0, 4))
+
+  return state.annualRates.find((rate) => {
+    if (normalizeCurrency(rate.currency) !== currency) return false
+    const from = normalizeDate(rate.effective_from)
+    const to = normalizeDate(rate.effective_to)
+    const fiscalYear = Number(rate.fiscal_year)
+    if (from && targetDate < from) return false
+    if (to && targetDate > to) return false
+    return fiscalYear === targetYear
+  })
+}
+
+export const getAppliedRateDetail = (
   data: OrderLike,
   side: RateSide,
   state: ExchangeRateState,
 ) => {
   const currency = normalizeCurrency(side === 'sales' ? data?.sales_currency : data?.cost_currency)
-  if (currency === 'JPY') return 1
+  if (currency === 'JPY') {
+    return {
+      side,
+      currency,
+      appliedRate: 1,
+      baseRate: 1,
+      adjustment: 0,
+      source: 'domestic',
+      rateDate: '',
+      referenceDate: '',
+    } satisfies AppliedRateDetail
+  }
 
   const rateDate = normalizeDate(data?.bl_date)
   if (rateDate) {
@@ -117,14 +173,100 @@ export const getAppliedRate = (
         ? toNumber(adjustment?.preferential_ttb_adjustment)
         : toNumber(adjustment?.preferential_tts_adjustment)
 
-      return baseRate + adjustmentValue
+      return {
+        side,
+        currency,
+        appliedRate: baseRate + adjustmentValue,
+        baseRate,
+        adjustment: adjustmentValue,
+        source: 'master',
+        rateDate,
+        referenceDate: baseRateRow.previous_business_date || baseRateRow.rate_date,
+        isBusinessDay: baseRateRow.is_business_day,
+      } satisfies AppliedRateDetail
     }
 
     const manualFinalRate = toNumber(data?.exchange_rate)
-    if (manualFinalRate) return manualFinalRate
+    if (manualFinalRate) {
+      return {
+        side,
+        currency,
+        appliedRate: manualFinalRate,
+        baseRate: manualFinalRate,
+        adjustment: 0,
+        source: 'manual-final',
+        rateDate,
+        referenceDate: '',
+      } satisfies AppliedRateDetail
+    }
   }
 
-  return toNumber(data?.internal_rate) || DEFAULT_RATE
+  const manualInternalRate = toNumber(data?.internal_rate)
+  if (manualInternalRate) {
+    return {
+      side,
+      currency,
+      appliedRate: manualInternalRate,
+      baseRate: manualInternalRate,
+      adjustment: 0,
+      source: 'internal',
+      rateDate,
+      referenceDate: '',
+    } satisfies AppliedRateDetail
+  }
+
+  const annualRate = findAnnualRate(data, side, state)
+  if (annualRate) {
+    const budgetRate = toNumber(annualRate.budget_rate)
+    return {
+      side,
+      currency,
+      appliedRate: budgetRate,
+      baseRate: budgetRate,
+      adjustment: 0,
+      source: 'annual-budget',
+      rateDate,
+      referenceDate: normalizeDate(annualRate.effective_from),
+    } satisfies AppliedRateDetail
+  }
+
+  return {
+    side,
+    currency,
+    appliedRate: DEFAULT_RATE,
+    baseRate: DEFAULT_RATE,
+    adjustment: 0,
+    source: 'default',
+    rateDate,
+    referenceDate: '',
+  } satisfies AppliedRateDetail
+}
+
+export const getAppliedRate = (
+  data: OrderLike,
+  side: RateSide,
+  state: ExchangeRateState,
+) => {
+  return getAppliedRateDetail(data, side, state).appliedRate
+}
+
+export const getExchangeRateStatus = (data: OrderLike, state: ExchangeRateState) => {
+  const sales = getAppliedRateDetail(data, 'sales', state)
+  const cost = getAppliedRateDetail(data, 'cost', state)
+  const details = [sales, cost].filter((item) => item.currency !== 'JPY')
+  if (details.length === 0) return '円建て'
+
+  const master = details.find((item) => item.source === 'master')
+  if (master) {
+    return master.isBusinessDay === false
+      ? `為替マスター: ${master.rateDate}（参照 ${master.referenceDate}）`
+      : `為替マスター: ${master.rateDate}`
+  }
+
+  if (details.some((item) => item.source === 'manual-final')) return '為替マスター未登録: 実勢為替を使用'
+  if (details.some((item) => item.source === 'internal')) return '未確定: 社内採算為替を使用'
+  if (details.some((item) => item.source === 'annual-budget')) return '未確定: 年度採算為替を使用'
+  return '未確定: 既定145を使用'
 }
 
 export const getLineSalesJPY = (data: OrderLike, state: ExchangeRateState) => {
