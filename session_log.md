@@ -170,3 +170,9 @@ React 環境のコンポーネントにおける「行分割」「加工・セ�
 - **Fix:** For non-JPY currencies, `exchange_rate` is treated as a usable manual final rate only when it is greater than `1`. If it is `1` or blank, the calculation falls back to `internal_rate`, then annual budget rate, then default 145.
 - **UI:** Consolidated the exchange status label function so `為替状態` displays readable Japanese labels such as `未確定: 年度採算為替を使用`.
 - **Verification:** `npm.cmd run build` and `npx.cmd eslint src/lib/exchangeRates.ts` completed successfully.
+
+## 20. 2026-05-15 Exchange-rate operation UI and verification
+- **Warning display:** Highlighted `為替状態` in yellow when the row is not finalized by the exchange master and is not JPY. This makes BL DATE blank, future dates, missing master rows, and budget-rate fallbacks visible in the grid.
+- **Automated test:** Added `npm run test:exchange`, covering blank BL DATE, 2026-05-14 master-rate USD calculation, and 2026-05-15 missing-master fallback where `exchange_rate=1` must not be used for foreign currency.
+- **Import UI:** Added `MUFG日次USD取込` and `MURC月次Excel取込` buttons to exchange master tabs. The buttons call local Vite API endpoints that execute the existing Python import scripts, keeping Supabase service credentials out of the browser bundle.
+- **Import verification:** Confirmed the local APIs import the MUFG daily USD CSV and the local MURC monthly `.xls` into Supabase, then refresh the master grid.

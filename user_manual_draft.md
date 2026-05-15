@@ -106,8 +106,10 @@
 ## 追記: 適用為替の確認
 - `採算詳細` ビューでは、`販売適用`、`仕入適用`、`為替状態` を確認できます。
 - `為替状態` には、為替マスターを使った日付、休日補完時の参照営業日、または手入力/社内採算/年度採算/既定値のどれを使ったかが表示されます。
+- `為替状態` が黄色の場合は、まだ為替マスターで確定していない行です。BL DATE未登録・未来日・マスター未登録などで、採算為替や年度採算為替を使っています。
 - 2026年USDの年度採算為替は初期値として `145` を登録済みです。正式な社内レートが決まったら、`マスター` 画面の `年度採算為替` で変更できます。
-- 当日分のUSD日次レートは、MUFG公式CSVから取り込める補助スクリプトを用意しています。
+- 当日分のUSD日次レートは、`マスター` 画面の為替系タブにある `MUFG日次USD取込` ボタンから取り込めます。
+- 月初のMURC Excelは、`MURC月次Excel取込` ボタンからファイルパスを指定して取り込めます。
 - 外貨行で `実勢為替` が `1` の場合は、円建て用の値が残っているものとして扱い、実勢為替としては使いません。為替マスター未登録日は、社内採算為替または年度採算為替に戻して計算します。
 ## 2026-05-13 Supabase offline sample display
 - When the Supabase database endpoint is unavailable in the local Vite development environment, the main grid may show bundled sample data so the prototype UI can still be reviewed.

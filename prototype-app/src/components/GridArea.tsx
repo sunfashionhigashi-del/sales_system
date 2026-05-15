@@ -1150,7 +1150,13 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
                { headerName: "為替状態", colId: "exchange_rate_status", field: "exchange_rate_status", editable: false, width: 190,
                  headerTooltip: "為替マスターの参照日、休日補完、またはフォールバック元を表示します。",
                  valueGetter: (params: any) => getExchangeRateStatusLabel(params.data, exchangeRateState),
-                 cellStyle: { backgroundColor: '#f8fafc', color: '#475569' } },
+                 cellStyle: (params: any) => {
+                   const value = String(params.value || '');
+                   if (value.startsWith('為替マスター') || value === '円建て') {
+                     return { backgroundColor: '#f8fafc', color: '#475569' };
+                   }
+                   return { backgroundColor: '#fef3c7', color: '#92400e', fontWeight: 'bold' };
+                 } },
                { headerName: "[経費] 通貨", field: "misc_currency", editable: true, width: 95,
                  cellEditor: 'agSelectCellEditor', cellEditorParams: { values: ['JPY', 'USD', 'EUR', 'CNY'] } },
                { headerName: "[経費] 金額", field: "misc_cost", editable: true, width: 95, type: 'numericColumn',

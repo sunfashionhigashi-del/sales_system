@@ -122,6 +122,11 @@ If any logic, UI, or architecture is updated in the codebase during a session, t
 - **年度採算為替:** 2026年USDの年度採算為替として `annual_exchange_rates` に `145` を登録。未確定段階で `internal_rate` が空の場合の採算確認に使う。
 - **MUFG日次:** `prototype-app/scripts/import_mufg_daily_usd_rate.py` を追加。MUFG公式CSV `https://www.bk.mufg.jp/gdocs/kinri/list_j/kinri/spot_rate.csv` からUSD日次TTS/TTBを取得し、`mufg_exchange_rates` にupsertする。
 - **外貨の1.0保護:** JPY行由来の `exchange_rate=1` がUSDなど外貨行に残っていても、実勢為替としては採用しない。外貨で為替マスター未登録の場合は、社内採算為替、年度採算為替、既定145へフォールバックする。
+## 18. 2026-05-15 為替運用UIと検証
+- **警告表示:** `為替状態` が `為替マスター` または `円建て` 以外の場合は黄色表示にし、未登録日や採算為替フォールバックが現場で見落とされにくいようにした。
+- **自動テスト:** `npm run test:exchange` を追加し、BL DATE空白、2026-05-14、2026-05-15未登録日のUSD換算を自動検証する。外貨で `exchange_rate=1` を採用しない保護もテスト対象。
+- **取り込みUI:** `マスター` 画面の為替系タブに `MUFG日次USD取込` と `MURC月次Excel取込` ボタンを追加。ローカルVite APIがPython取り込みスクリプトを実行するため、秘密情報はブラウザへ渡さない。
+- **ローカルAPI:** Vite dev serverに `/api/import-mufg-daily-usd` と `/api/import-murc-usd` を追加。前者はMUFG公式CSV、後者は指定されたローカルMURC `.xls` をSupabaseへupsertする。
 ## 2026-05-13 Supabase connectivity fallback
 - If the configured Supabase project endpoint cannot be reached during the main transaction grid load, the prototype now displays the bundled `src/gcga_data.json` sample rows instead of leaving the grid blank.
 - The bundled sample fallback is limited to Vite development mode (`import.meta.env.DEV`) so production builds do not silently replace live data with sample data.
