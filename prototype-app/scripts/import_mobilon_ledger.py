@@ -27,6 +27,7 @@ import xlrd
 MOBILON_SOURCE_SHEET = "管理表"
 DEFAULT_SUPPLIER = "日清紡"
 YAGIKUMA_SUPPLIER = "八木熊"
+RECENT_EXW_ACTIVE_FROM = date(2026, 1, 1)
 YAGIKUMA_CUSTOMER_KEYWORDS = (
     "min yuen",
     "sf hong kong",
@@ -150,10 +151,11 @@ def status_and_flags(
     today: date,
 ) -> tuple[str, bool, bool]:
     shipped = bool(exw_date and exw_date <= today)
+    recent_exw = bool(exw_date and exw_date >= RECENT_EXW_ACTIVE_FROM)
     if invoice_no:
-        return "請求済", True, True
+        return "請求済", not recent_exw, True
     if shipped:
-        return "未請求", True, False
+        return "未請求", not recent_exw, False
     if not po_date:
         return "発注待", False, False
     return "未請求", False, False

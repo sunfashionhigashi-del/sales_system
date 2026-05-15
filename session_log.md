@@ -192,7 +192,13 @@ React 環境のコンポーネントにおける「行分割」「加工・セ�
 - **Input file:** Received `サンプル/モビロン管理台帳(Sales Note台帳含む).xls`; the `管理表` sheet is the source ledger for Mobiron order/purchase rows.
 - **Implementation:** Added `prototype-app/scripts/import_mobilon_ledger.py`. The script reads the legacy workbook, creates a dry-run JSON preview by default, and inserts into Supabase only with `--insert`. Generated preview output is ignored by Git.
 - **Mapping decision:** Sales Note/order number maps to `order_no`; customer, category, order date, customer PO, PO date, item code, size/color, quantity/unit, sales/cost prices, EXW, ETD, invoice date/no, and memo fields map into `order_items`. ETD is used as the best available `bl_date` for historical exchange-rate calculation.
-- **Status/archive decision:** Invoice-number rows import as `請求済`, locked and archived. Rows without invoice numbers are judged by EXW; EXW dates on or before 2026-05-15 are archived as shipped history while retaining `未請求` when no invoice number was recorded.
+- **Status/archive decision:** Invoice-number rows import as `請求済` and locked. Rows are judged by EXW for archive visibility, but EXW dates from 2026-01-01 onward remain active because recent EXW rows may still be shipment-waiting, in-stock, missing ETD, or missing invoice follow-up. Older EXW rows are archived as shipped history while retaining their status.
 - **Supplier decision:** Default supplier is `日清紡`; category `Code` and customer routes Min Yuen, SF Hong Kong/SF HK customer, Helby, Danesi, and R.M.X. import as `八木熊`.
-- **DB import:** Inserted 2,800 Mobiron rows into Supabase `order_items`. Verification counts matched the preview: archived 2,598, locked 565, supplier split `日清紡` 2,394 / `八木熊` 406, status split `未請求` 2,235 / `請求済` 565, currency split JPY 2,397 / USD 403.
+- **DB import:** Inserted 2,800 Mobiron rows into Supabase `order_items`. After the recent-EXW visibility correction, verification counts are archived 2,497 / active 303, locked 565, supplier split `日清紡` 2,394 / `八木熊` 406, status split `未請求` 2,235 / `請求済` 565, currency split JPY 2,397 / USD 403.
 - **Verification:** `npm.cmd run build` completed successfully. Supabase readback confirmed 2,800 imported rows via `system_log='Imported from Mobiron legacy ledger.'`.
+
+## 24. 2026-05-15 Mobiron recent EXW archive correction
+- **User correction:** EXW can be present even when ETD or invoice number is missing, and recent rows may represent shipment-waiting or stock situations. Hiding those rows in the archive could cause operational follow-up misses.
+- **Implementation:** Updated `prototype-app/scripts/import_mobilon_ledger.py` so Mobiron rows with EXW/factory_date from 2026-01-01 onward are not archived on import.
+- **DB correction:** Patched existing Mobiron import rows in Supabase where `factory_date >= 2026-01-01` and `archived=true` to `archived=false`.
+- **Verification:** Supabase readback confirmed 2,800 Mobiron rows total, archived 2,497, active 303, and zero rows with `factory_date >= 2026-01-01` still archived.
