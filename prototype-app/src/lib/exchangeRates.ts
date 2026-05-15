@@ -126,19 +126,41 @@ const adjustmentApplies = (
 const resolveBudgetDate = (data: OrderLike) =>
   normalizeDate(data?.bl_date) || normalizeDate(data?.order_date) || new Date().toISOString().slice(0, 10)
 
+export const getFiscalYearFromDate = (value: unknown) => {
+  const normalized = normalizeDate(value)
+  if (!normalized) return null
+  const year = Number(normalized.slice(0, 4))
+  const month = Number(normalized.slice(5, 7))
+  if (!year || !month) return null
+  return month >= 6 ? year : year - 1
+}
+
 const findAnnualRate = (data: OrderLike, side: RateSide, state: ExchangeRateState) => {
   const currency = normalizeCurrency(side === 'sales' ? data?.sales_currency : data?.cost_currency)
   const targetDate = resolveBudgetDate(data)
-  const targetYear = Number(targetDate.slice(0, 4))
+  const targetFiscalYear = getFiscalYearFromDate(targetDate)
 
-  return state.annualRates.find((rate) => {
+  const candidates = state.annualRates.filter((rate) => {
     if (normalizeCurrency(rate.currency) !== currency) return false
     const from = normalizeDate(rate.effective_from)
     const to = normalizeDate(rate.effective_to)
-    const fiscalYear = Number(rate.fiscal_year)
     if (from && targetDate < from) return false
     if (to && targetDate > to) return false
-    return fiscalYear === targetYear
+    return true
+  })
+  if (candidates.length > 0) return candidates[0]
+
+  return state.annualRates.find((rate) => {
+    if (normalizeCurrency(rate.currency) !== currency) return false
+    const fiscalYear = Number(rate.fiscal_year)
+    if (!targetFiscalYear) return false
+    if (!normalizeDate(rate.effective_from) && !normalizeDate(rate.effective_to)) {
+      return fiscalYear === targetFiscalYear
+    }
+    const expectedFrom = `${fiscalYear}-06-01`
+    const expectedTo = `${fiscalYear + 1}-05-31`
+    if (targetDate < expectedFrom || targetDate > expectedTo) return false
+    return fiscalYear === targetFiscalYear
   })
 }
 

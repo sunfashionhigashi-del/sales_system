@@ -45,11 +45,18 @@ const state = {
   ],
   annualRates: [
     {
-      fiscal_year: 2026,
+      fiscal_year: 2025,
       currency: 'USD',
       budget_rate: 145,
-      effective_from: '2026-01-01',
-      effective_to: '2026-12-31',
+      effective_from: '2025-06-01',
+      effective_to: '2026-05-31',
+    },
+    {
+      fiscal_year: 2026,
+      currency: 'USD',
+      budget_rate: 146,
+      effective_from: '2026-06-01',
+      effective_to: '2027-05-31',
     },
   ],
   rateMap: fx.buildExchangeRateMap(rates),
@@ -90,6 +97,14 @@ const cases = [
     costRate: 145,
     status: '未確定: 年度採算為替を使用',
     profit: 58000,
+  },
+  {
+    label: 'June 1 switches to the next fiscal year budget rate',
+    row: { ...baseRow, bl_date: '2026-06-01' },
+    salesRate: 146,
+    costRate: 146,
+    status: '未確定: 年度採算為替を使用',
+    profit: 58400,
   },
 ];
 

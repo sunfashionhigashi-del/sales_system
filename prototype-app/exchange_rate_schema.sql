@@ -89,7 +89,7 @@ CREATE INDEX IF NOT EXISTS idx_exchange_rate_adjustments_lookup
   ON exchange_rate_adjustments (currency, is_active, effective_from, effective_to, priority);
 
 COMMENT ON TABLE annual_exchange_rates IS
-  'Annual budget rates manually set by management for in-year profitability checks before shipment finalization.';
+  'Annual budget rates manually set by management for profitability checks before shipment finalization. fiscal_year is the starting year; SUCCESS exchange fiscal year runs June 1 through the following May 31.';
 COMMENT ON TABLE mufg_exchange_rates IS
   'Daily MUFG public TTB/TTS rates. For non-business BL DATEs, store the previous business day rate under the BL DATE with previous_business_date populated.';
 COMMENT ON TABLE exchange_rate_adjustments IS

@@ -234,7 +234,7 @@ def upsert_usd_adjustment(base_url: str, key: str, effective_from: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("xls_path", type=Path)
-    parser.add_argument("--effective-from", default="2026-01-01")
+    parser.add_argument("--effective-from", default="1990-01-01")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 

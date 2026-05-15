@@ -100,7 +100,7 @@ If any logic, UI, or architecture is updated in the codebase during a session, t
 - **影響範囲:** CSSと表示クラスのみ。保存処理、データ構造、集計ロジック、帳票ロジックには変更なし。
 
 ## 14. 2026-05-03 為替管理方針
-- **年度採算為替:** 毎年度、管理者が年間の採算確認用レートを `annual_exchange_rates` に設定する。これは見積・受注前後の暫定採算確認に使う。
+- **年度採算為替:** 毎年度、管理者が年間の採算確認用レートを `annual_exchange_rates` に設定する。SUCCESSの為替年度は6月1日開始、翌年5月末終了とし、`fiscal_year` は開始年を表す。これは見積・受注前後の暫定採算確認に使う。
 - **実為替確定:** 出荷後は `BL DATE` を基準に、MUFG公表為替レートを使って採算を確定する。販売換算は `TTB`、仕入換算は `TTS` を使う。
 - **休日処理:** `BL DATE` が銀行休業日などで公表レートが存在しない場合は、前営業日のレートを適用する。`mufg_exchange_rates.previous_business_date` に実際に参照した営業日を保存する。
 - **優遇レート:** MUFG基準レートに対する優遇幅は `exchange_rate_adjustments` で後から設定できるようにする。販売先・仕入先・通貨・期間・優先度を持たせ、適用TTB/TTSを算出する。
@@ -109,6 +109,7 @@ If any logic, UI, or architecture is updated in the codebase during a session, t
 ## 15. 2026-05-14 MURC月次Excel取り込み方針
 - **運用方針:** 為替はまず手動マスター/Excel取り込み方式で安定運用し、自動取得は後続フェーズで追加する。公式ソースはMURC過去相場ページ（https://www.murc-kawasesouba.jp/fx/past_3month.php ）とMUFG銀行の日次相場ページ（https://www.bk.mufg.jp/ippan/kinri/list_j/kinri/kawase.html ）を使う。
 - **MURC Excel:** 月初に前月末までの相場を含むExcelを取得し、`data` シートのUSD `TTS` / `TTB` を `mufg_exchange_rates` へ投入する。営業日レートは公表値のまま保存し、休日・銀行休業日は前営業日の公表値をコピーして `is_business_day=false`、`previous_business_date` に参照元営業日を保存する。
+- **過去実為替:** 2025年以前の受発注データは、MURCの年別Excelを同じ取り込みスクリプトで投入する。`mufg_exchange_rates` は日付・通貨単位の蓄積テーブルなので、過去年のExcelを順番に取り込めばBL DATE基準で過去実為替を参照できる。
 - **USD優遇:** 公表レート自体は変更せず、御社のUSD優遇は `exchange_rate_adjustments` に保持する。販売換算は `TTB + 0.50`、仕入換算は `TTS - 0.50` として適用する。
 - **補助ツール:** `prototype-app/scripts/import_murc_usd_rates.py` を追加し、ローカルのMURC `.xls` からUSD日次レートとUSD標準優遇ルールをSupabaseへ投入できるようにした。秘密鍵は `.env.admin.local` から読み取り、コードやログには保存しない。
 ## 16. 2026-05-14 為替マスター計算接続
@@ -119,7 +120,7 @@ If any logic, UI, or architecture is updated in the codebase during a session, t
 ## 17. 2026-05-14 為替計算の見える化と日次取り込み
 - **採算詳細ビュー:** `販売適用`、`仕入適用`、`為替状態` の表示列を追加。BL DATEが為替マスターに一致する場合は適用済みTTB/TTS優遇後レートと参照日を表示する。休日補完行では参照元営業日も表示する。
 - **BL DATE補助:** BL DATE、通貨、単価、採算為替、実勢為替、経費が変更された場合、粗利・粗利率・適用レート・為替状態を即時再計算する。為替マスター未登録日は、手入力実勢為替、社内採算為替、年度採算為替、既定145の順で状態表示する。
-- **年度採算為替:** 2026年USDの年度採算為替として `annual_exchange_rates` に `145` を登録。未確定段階で `internal_rate` が空の場合の採算確認に使う。
+- **年度採算為替:** USDの暫定採算レートとして `annual_exchange_rates` に `145` を登録。年度境界は6月1日から翌年5月末までで判定し、未確定段階で `internal_rate` が空の場合の採算確認に使う。
 - **MUFG日次:** `prototype-app/scripts/import_mufg_daily_usd_rate.py` を追加。MUFG公式CSV `https://www.bk.mufg.jp/gdocs/kinri/list_j/kinri/spot_rate.csv` からUSD日次TTS/TTBを取得し、`mufg_exchange_rates` にupsertする。
 - **外貨の1.0保護:** JPY行由来の `exchange_rate=1` がUSDなど外貨行に残っていても、実勢為替としては採用しない。外貨で為替マスター未登録の場合は、社内採算為替、年度採算為替、既定145へフォールバックする。
 ## 18. 2026-05-15 為替運用UIと検証
