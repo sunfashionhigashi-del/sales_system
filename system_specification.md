@@ -140,3 +140,8 @@ If any logic, UI, or architecture is updated in the codebase during a session, t
 - Status policy: rows with invoice numbers import as `請求済` and locked. Rows are judged by EXW for archive visibility, but EXW dates from 2026-01-01 onward are not archived because recent EXW rows may still be waiting for shipment, stock movement, ETD, or invoice follow-up. Older EXW rows are archived as shipped history while remaining reviewable.
 - Supplier policy: default Mobiron supplier is `日清紡`. Rows are assigned `八木熊` when the category is `Code` or the customer matches Min Yuen, SF Hong Kong/SF HK customer routes, Helby, Danesi, or R.M.X.
 - Imported 2,800 Mobiron rows into Supabase. Current verification counts after the recent-EXW visibility correction: archived 2,497, active 303, locked 565, suppliers `日清紡` 2,394 and `八木熊` 406, currencies JPY 2,397 and USD 403.
+
+## 2026-05-15 Grid preloading for whole-dataset sort/filter
+- The main AG Grid still renders the first Supabase page quickly, but after the initial page is displayed it preloads the remaining rows for the active tab in the background.
+- While background preload is in progress, the record badge shows loaded rows versus total rows. Once preload completes, client-side sorting and filtering operate on the full active-tab dataset instead of only the initially visible page.
+- Sort and filter events also trigger the same full-dataset preload when the user acts before background preload has completed. This prevents suppliers, users, or other values that are lower in the result set from being absent from sort/filter outcomes.

@@ -718,8 +718,11 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPreloadingAll, setIsPreloadingAll] = useState(false);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [dataSourceStatus, setDataSourceStatus] = useState<'supabase' | 'local-fallback' | null>(null);
+  const loadSequenceRef = useRef(0);
+  const preloadPromiseRef = useRef<Promise<void> | null>(null);
   const PAGE_SIZE = 100;
 
   const buildBaseQuery = (withCount = false) => {
@@ -762,6 +765,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
           setPage(0);
           setTotalCount(0);
           setHasMore(false);
+          setIsPreloadingAll(false);
           setDataSourceStatus(null);
           return;
       }
@@ -770,6 +774,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
       setPage(1);
       setTotalCount(fallbackRows.length);
       setHasMore(false);
+      setIsPreloadingAll(false);
       setDataSourceStatus('local-fallback');
   }, [getLocalFallbackRows]);
 
@@ -778,6 +783,9 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   }, [activeTab]);
 
   const fetchData = async () => {
+    const sequence = loadSequenceRef.current + 1;
+    loadSequenceRef.current = sequence;
+    preloadPromiseRef.current = null;
     try {
       setIsLoading(true);
       const query = buildBaseQuery(true).order('created_at', { ascending: false }).order('id', { ascending: true }).range(0, PAGE_SIZE - 1);
@@ -791,6 +799,11 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         setPage(1);
         if (count !== null) setTotalCount(count);
         setHasMore((data?.length || 0) === PAGE_SIZE);
+        if (count && (data?.length || 0) < count) {
+          void preloadRemainingData(sequence, 1, count);
+        } else {
+          setIsPreloadingAll(false);
+        }
         setDataSourceStatus('supabase');
       }
     } catch (e) {
@@ -800,8 +813,51 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
     }
   }
 
+  const preloadRemainingData = (sequence: number, startPage: number, expectedCount: number) => {
+      if (preloadPromiseRef.current) return preloadPromiseRef.current;
+      setHasMore(false);
+      setIsPreloadingAll(true);
+
+      preloadPromiseRef.current = (async () => {
+          const loadedRows: any[] = [];
+          let nextPage = startPage;
+
+          while (nextPage * PAGE_SIZE < expectedCount) {
+              const from = nextPage * PAGE_SIZE;
+              const to = from + PAGE_SIZE - 1;
+              const query = buildBaseQuery(false).order('created_at', { ascending: false }).order('id', { ascending: true }).range(from, to);
+              const { data, error } = await query;
+              if (error) throw error;
+              if (!data || data.length === 0) break;
+              loadedRows.push(...data);
+              nextPage += 1;
+              if (data.length < PAGE_SIZE) break;
+          }
+
+          if (loadSequenceRef.current !== sequence) return;
+          if (loadedRows.length > 0) {
+              setRowData(prev => {
+                  const existingIds = new Set(prev.map(row => row.id));
+                  return [...prev, ...loadedRows.filter(row => !existingIds.has(row.id))];
+              });
+          }
+          setPage(nextPage);
+          setHasMore(false);
+      })()
+        .catch(error => {
+            console.error('Preload all rows error:', error);
+            if (loadSequenceRef.current === sequence) setHasMore(true);
+        })
+        .finally(() => {
+            if (loadSequenceRef.current === sequence) setIsPreloadingAll(false);
+            preloadPromiseRef.current = null;
+        });
+
+      return preloadPromiseRef.current;
+  }
+
   const loadMoreData = async () => {
-      if (!hasMore || isLoading) return;
+      if (!hasMore || isLoading || isPreloadingAll) return;
       try {
           setIsLoading(true);
           const from = page * PAGE_SIZE;
@@ -842,7 +898,16 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   const handleFilterChanged = useCallback(() => {
       const model = gridRef.current?.api.getFilterModel() || {};
       setActiveFilterCount(Object.keys(model).length);
-  }, []);
+      if (dataSourceStatus === 'supabase' && totalCount !== null && rowData.length < totalCount) {
+          void preloadRemainingData(loadSequenceRef.current, page, totalCount);
+      }
+  }, [dataSourceStatus, totalCount, rowData.length, page]);
+
+  const handleSortChanged = useCallback(() => {
+      if (dataSourceStatus === 'supabase' && totalCount !== null && rowData.length < totalCount) {
+          void preloadRemainingData(loadSequenceRef.current, page, totalCount);
+      }
+  }, [dataSourceStatus, totalCount, rowData.length, page]);
 
   const handleSelectionChanged = useCallback(() => {
       setSelectedRows(gridRef.current?.api.getSelectedRows() || []);
@@ -1437,7 +1502,9 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
          <div className="absolute bottom-6 right-6 z-50 bg-slate-800/90 backdrop-blur-sm text-white px-4 py-2 rounded-full shadow-xl border border-slate-700/50 flex items-center pointer-events-none">
              <Database size={14} className="mr-2 text-slate-400" />
              <span className="font-medium text-slate-300 text-xs tracking-wider mr-2">該当データ</span>
-             <span className="font-bold text-amber-400 text-sm">{totalCount.toLocaleString()}</span>
+             <span className="font-bold text-amber-400 text-sm">
+               {isPreloadingAll ? `${rowData.length.toLocaleString()} / ${totalCount.toLocaleString()}` : totalCount.toLocaleString()}
+             </span>
              <span className="font-medium text-slate-300 text-xs tracking-wider ml-1">件</span>
          </div>
       )}
@@ -1457,6 +1524,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         doesExternalFilterPass={doesExternalFilterPass}
         onBodyScroll={onBodyScroll}
         onFilterChanged={handleFilterChanged}
+        onSortChanged={handleSortChanged}
         onSelectionChanged={handleSelectionChanged}
         localeText={AG_GRID_LOCALE_JP}
         autoSizeStrategy={{ type: 'fitCellContents' }}

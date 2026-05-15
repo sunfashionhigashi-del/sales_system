@@ -202,3 +202,9 @@ React 環境のコンポーネントにおける「行分割」「加工・セ�
 - **Implementation:** Updated `prototype-app/scripts/import_mobilon_ledger.py` so Mobiron rows with EXW/factory_date from 2026-01-01 onward are not archived on import.
 - **DB correction:** Patched existing Mobiron import rows in Supabase where `factory_date >= 2026-01-01` and `archived=true` to `archived=false`.
 - **Verification:** Supabase readback confirmed 2,800 Mobiron rows total, archived 2,497, active 303, and zero rows with `factory_date >= 2026-01-01` still archived.
+
+## 25. 2026-05-15 Whole-dataset sort/filter preload
+- **Issue:** The grid used page-based loading for responsiveness. AG Grid sort/filter then acted only on rows already loaded in the browser, so suppliers or users that existed lower in the dataset could be missing until the user scrolled down.
+- **Implementation:** `GridArea` now loads the first Supabase page for fast initial paint, then preloads remaining rows for the active tab in the background. Sort and filter events trigger the same preload if the user acts before all rows are loaded.
+- **UX:** The bottom-right record badge shows `loaded / total` while background preload is active, then returns to total count after all rows are available.
+- **Verification:** `npm.cmd run build` completed successfully.
