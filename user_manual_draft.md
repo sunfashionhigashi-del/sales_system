@@ -144,3 +144,9 @@
 - SUCCESS画面では、検索欄で `NYBO-`、`4012 (4/24/26)`、`Sun Fashion America`、`HANDLING_FEE`、`INTERNATIONAL_FREIGHT` などを検索すると取り込み結果を確認できます。
 - 件数確認は `cd prototype-app` 後に `python scripts/preview_ny_backorder_import.py --verify-batch-id NYBO-20260515174348` を実行します。
 - 問題があって取り消す場合は `python scripts/preview_ny_backorder_import.py --rollback-batch-id NYBO-20260515174348` を実行します。この操作は同じバッチIDのNY BackOrder行だけを削除します。
+
+## 2026-05-15 LA/EU BackOrder 取り込み準備
+- LAとEUのBackOrder台帳も、NYと同じようにプレビュー、投入、件数確認、ロールバックができる共通スクリプトで扱います。
+- LAは `python scripts/preview_regional_backorder_import.py "..\サンプル\千葉 LA-Backorder  - 20221227～.xlsm" --region LA` でプレビューします。
+- EUは `python scripts/preview_regional_backorder_import.py "..\サンプル\千葉 EU-Backorder  - 20221227～ .xlsm" --region EU` でプレビューします。
+- まだLA/EUはSupabaseへ投入していません。投入時は `--insert` を付け、戻す場合は生成された `LABO-...` または `EUBO-...` のバッチIDでロールバックします。

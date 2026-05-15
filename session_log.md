@@ -221,3 +221,10 @@ React 環境のコンポーネントにおける「行分割」「加工・セ�
 - **DB import:** Inserted the NY BackOrder conversion into Supabase batch `NYBO-20260515174348`.
 - **Verification:** `python -m py_compile scripts/preview_ny_backorder_import.py` succeeded. `--verify-batch-id NYBO-20260515174348` counted 4,258 rows. A Supabase readback for `NYBO-4012 (4/24/26)` returned 8 rows: 6 product details plus `HANDLING_FEE` and `INTERNATIONAL_FREIGHT`.
 - **Rollback:** The exact rollback command is `python scripts/preview_ny_backorder_import.py --rollback-batch-id NYBO-20260515174348`. It deletes only rows whose `system_log` includes this batch id.
+
+## 28. 2026-05-15 LA/EU regional BackOrder readiness
+- **Input files:** Analyzed `サンプル/千葉 LA-Backorder  - 20221227～.xlsm` and `サンプル/千葉 EU-Backorder  - 20221227～ .xlsm`.
+- **Implementation:** Added `prototype-app/scripts/preview_regional_backorder_import.py`, a common regional importer for NY/LA/EU with preview, insert, verify, and rollback support. Output preview JSON files for LA/EU are ignored by Git.
+- **LA understanding:** LA uses the same broad row structure as NY, but category factors validate the Osaka-to-NY price from End User price (`K × factor`) instead of purchase price. The LA preview converts 3,637 rows: 2,313 detail rows, 1,324 fee rows, 877 excluded title rows, and 49 exceptional rows.
+- **EU understanding:** EU has a different older layout. It has no category-code pricing control like NY/LA; End User unit price is kept separately, while the internal outgoing price/cost is preserved as JPY. The EU preview converts 1,747 rows: 1,135 detail rows, 612 fee rows, 374 excluded title rows, and 20 exceptional rows.
+- **Verification:** `python -m py_compile scripts/preview_regional_backorder_import.py` succeeded. LA/EU preview runs completed, and empty `--verify-batch-id` / `--rollback-batch-id` checks returned zero rows without error. No LA/EU rows were inserted yet.

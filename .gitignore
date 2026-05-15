@@ -7,5 +7,8 @@ prototype-app/dist/
 !prototype-app/.env.local
 prototype-app/vite-dev*.log
 murc_*.xls
+**/~$*.xlsm
 prototype-app/mobilon_import_preview.json
 prototype-app/ny_backorder_import_preview.json
+prototype-app/labo_backorder_import_preview.json
+prototype-app/eubo_backorder_import_preview.json
