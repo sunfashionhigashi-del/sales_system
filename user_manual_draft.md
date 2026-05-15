@@ -151,3 +151,7 @@
 - EUは `python scripts/preview_regional_backorder_import.py "..\サンプル\千葉 EU-Backorder  - 20221227～ .xlsm" --region EU` でプレビューします。
 - EUはSun Fashion Americaを通さないため、顧客名はそのまま販売先として扱い、販売単価は顧客向けUSD単価、仕入はJPY原価として取り込みます。
 - まだLA/EUはSupabaseへ投入していません。投入時は `--insert` を付け、戻す場合は生成された `LABO-...` または `EUBO-...` のバッチIDでロールバックします。
+
+## 2026-05-15 LA/EU BackOrder Supabase����
+- LA/EU BackOrder��Supabase�֓����ς݂ł��BLA�� LABO-20260515192608 ��3,637�s�AEU�� EUBO-20260515192623 ��1,748�s�ł��B
+- �߂��ꍇ�� python scripts/preview_regional_backorder_import.py --region LA --rollback-batch-id LABO-20260515192608 �܂��� python scripts/preview_regional_backorder_import.py --region EU --rollback-batch-id EUBO-20260515192623 �����s���܂��B
