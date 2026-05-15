@@ -722,8 +722,9 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [dataSourceStatus, setDataSourceStatus] = useState<'supabase' | 'local-fallback' | null>(null);
   const loadSequenceRef = useRef(0);
-  const preloadPromiseRef = useRef<Promise<void> | null>(null);
+  const preloadStateRef = useRef<{ sequence: number; promise: Promise<void> } | null>(null);
   const PAGE_SIZE = 100;
+  const PRELOAD_PAGE_SIZE = 1000;
 
   const buildBaseQuery = (withCount = false) => {
       let query = supabase.from('order_items').select('*', withCount ? { count: 'exact' } : undefined);
@@ -785,7 +786,7 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
   const fetchData = async () => {
     const sequence = loadSequenceRef.current + 1;
     loadSequenceRef.current = sequence;
-    preloadPromiseRef.current = null;
+    preloadStateRef.current = null;
     try {
       setIsLoading(true);
       const query = buildBaseQuery(true).order('created_at', { ascending: false }).order('id', { ascending: true }).range(0, PAGE_SIZE - 1);
@@ -813,36 +814,33 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
     }
   }
 
-  const preloadRemainingData = (sequence: number, startPage: number, expectedCount: number) => {
-      if (preloadPromiseRef.current) return preloadPromiseRef.current;
+  function preloadRemainingData(sequence: number, startPage: number, expectedCount: number) {
+      if (preloadStateRef.current?.sequence === sequence) return preloadStateRef.current.promise;
       setHasMore(false);
       setIsPreloadingAll(true);
 
-      preloadPromiseRef.current = (async () => {
-          const loadedRows: any[] = [];
+      const promise = (async () => {
           let nextPage = startPage;
 
           while (nextPage * PAGE_SIZE < expectedCount) {
               const from = nextPage * PAGE_SIZE;
-              const to = from + PAGE_SIZE - 1;
+              const to = Math.min(from + PRELOAD_PAGE_SIZE - 1, expectedCount - 1);
               const query = buildBaseQuery(false).order('created_at', { ascending: false }).order('id', { ascending: true }).range(from, to);
               const { data, error } = await query;
               if (error) throw error;
               if (!data || data.length === 0) break;
-              loadedRows.push(...data);
-              nextPage += 1;
-              if (data.length < PAGE_SIZE) break;
-          }
-
-          if (loadSequenceRef.current !== sequence) return;
-          if (loadedRows.length > 0) {
+              if (loadSequenceRef.current !== sequence) return;
               setRowData(prev => {
                   const existingIds = new Set(prev.map(row => row.id));
-                  return [...prev, ...loadedRows.filter(row => !existingIds.has(row.id))];
+                  return [...prev, ...data.filter(row => !existingIds.has(row.id))];
               });
+              const loadedThrough = from + data.length;
+              nextPage = Math.ceil(loadedThrough / PAGE_SIZE);
+              setPage(nextPage);
+              setHasMore(loadedThrough < expectedCount);
+              if (data.length < PRELOAD_PAGE_SIZE) break;
           }
-          setPage(nextPage);
-          setHasMore(false);
+          if (loadSequenceRef.current === sequence) setHasMore(false);
       })()
         .catch(error => {
             console.error('Preload all rows error:', error);
@@ -850,17 +848,18 @@ const GridArea = forwardRef(({ activeTab, session }: GridAreaProps, ref) => {
         })
         .finally(() => {
             if (loadSequenceRef.current === sequence) setIsPreloadingAll(false);
-            preloadPromiseRef.current = null;
+            if (preloadStateRef.current?.sequence === sequence) preloadStateRef.current = null;
         });
 
-      return preloadPromiseRef.current;
+      preloadStateRef.current = { sequence, promise };
+      return promise;
   }
 
   const loadMoreData = async () => {
-      if (!hasMore || isLoading || isPreloadingAll) return;
+      if (!hasMore || isLoading) return;
       try {
           setIsLoading(true);
-          const from = page * PAGE_SIZE;
+          const from = rowData.length;
           const to = from + PAGE_SIZE - 1;
           const query = buildBaseQuery(false).order('created_at', { ascending: false }).order('id', { ascending: true }).range(from, to);
           

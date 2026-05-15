@@ -207,4 +207,4 @@ React 環境のコンポーネントにおける「行分割」「加工・セ�
 - **Issue:** The grid used page-based loading for responsiveness. AG Grid sort/filter then acted only on rows already loaded in the browser, so suppliers or users that existed lower in the dataset could be missing until the user scrolled down.
 - **Implementation:** `GridArea` now loads the first Supabase page for fast initial paint, then preloads remaining rows for the active tab in the background. Sort and filter events trigger the same preload if the user acts before all rows are loaded.
 - **UX:** The bottom-right record badge shows `loaded / total` while background preload is active, then returns to total count after all rows are available.
-- **Verification:** `npm.cmd run build` completed successfully.
+- **Verification:** `npm.cmd run build` completed successfully. A headless Chrome check against `http://localhost:4173/` confirmed the all-data tab progressed from `100 / 14,068` to `1,100 / 14,068`, then completed at `14,068`; Supabase network ranges reached the final `13100-14067` batch.
