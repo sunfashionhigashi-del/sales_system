@@ -117,3 +117,11 @@
 - In this state, the grid displays `Dev only: Supabase offline, showing bundled sample data`. Data shown under this banner is not live database data.
 - Production builds do not silently replace unavailable Supabase data with bundled sample data.
 - To restore live database display and Save behavior, update `prototype-app/.env.local` with an active Supabase project URL and anon/publishable key, then restart the Vite dev server.
+
+## 2026-05-15 Mobiron台帳の取り込み
+- 旧Mobiron管理台帳の `管理表` シートをSUCCESSの受発注データへ取り込みました。
+- Invoice番号がある行は `請求済` としてロックされ、アーカイブへ入ります。
+- Invoice番号がなくてもEXW日が過去または当日の行は、出荷済み履歴としてアーカイブへ入ります。ステータスは後から確認できるよう `未請求` のまま保持します。
+- BL DATEは台帳に専用列がないため、過去分の為替計算用にETDを取り込んでいます。
+- 仕入先は通常 `日清紡` です。ただし、カテゴリが `Code` の行、および Min Yuen、SF Hong Kong/SF HK顧客向け、Helby、Danesi、R.M.X. ルートの行は `八木熊` として取り込んでいます。
+- 顧客PO枝番、当社PO枝番、顧客品番、注意事項、輸送方法、ETA、旧台帳上の金額、備考は、行の `comments` に保存しています。
