@@ -78,26 +78,41 @@ def read_murc_usd_rows(xls_path: Path) -> list[dict[str, Any]]:
     book = xlrd.open_workbook(str(xls_path))
     sheet = book.sheet_by_name("data")
 
-    last_business_row = None
+    dated_rows: list[tuple[int, date]] = []
+    last_seen_date: date | None = None
     for row_index in range(2, sheet.nrows):
         row_date = as_date(book, sheet.cell_value(row_index, 0), sheet.cell_type(row_index, 0))
-        if (
-            row_date
-            and is_number(sheet.cell_value(row_index, 2))
-            and is_number(sheet.cell_value(row_index, 3))
-        ):
-            last_business_row = row_index
+        if not row_date:
+            if dated_rows:
+                break
+            continue
+        if last_seen_date and row_date < last_seen_date:
+            break
+        dated_rows.append((row_index, row_date))
+        last_seen_date = row_date
 
-    if last_business_row is None:
+    business_dates = [
+        row_date
+        for row_index, row_date in dated_rows
+        if is_number(sheet.cell_value(row_index, 2))
+        and is_number(sheet.cell_value(row_index, 3))
+    ]
+
+    if not business_dates:
         raise RuntimeError("No USD TTS/TTB rows found in the data sheet.")
+    last_business_date = business_dates[-1]
+    cutoff_date = (
+        date(last_business_date.year, 12, 31)
+        if last_business_date.month == 12
+        else last_business_date
+    )
 
     rows: list[dict[str, Any]] = []
     previous_business: dict[str, Any] | None = None
     imported_at = datetime.now(timezone.utc).isoformat()
 
-    for row_index in range(2, last_business_row + 1):
-        row_date = as_date(book, sheet.cell_value(row_index, 0), sheet.cell_type(row_index, 0))
-        if not row_date:
+    for row_index, row_date in dated_rows:
+        if row_date > cutoff_date:
             continue
 
         tts_value = sheet.cell_value(row_index, 2)

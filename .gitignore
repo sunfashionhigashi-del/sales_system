@@ -6,3 +6,4 @@ prototype-app/dist/
 .env*
 !prototype-app/.env.local
 prototype-app/vite-dev*.log
+murc_*.xls

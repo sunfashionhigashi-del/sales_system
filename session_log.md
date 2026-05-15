@@ -181,3 +181,9 @@ React 環境のコンポーネントにおける「行分割」「加工・セ�
 - **Fiscal year:** Updated annual budget exchange-rate selection to use the SUCCESS exchange fiscal year: June 1 through the following May 31. `fiscal_year` represents the starting year, so FY2025 is 2025-06-01 to 2026-05-31.
 - **Historical rates:** Confirmed the past-order approach: import MURC year Excel files for 2025 and earlier into `mufg_exchange_rates`. The existing BL DATE lookup then works for historical orders because rates are stored by actual rate date and currency.
 - **Preferential rule:** Changed the MURC import script default USD preferential adjustment start date to 1990-01-01 so historical USD rows receive the same TTB/TTS 50-sen rule unless a narrower rule is later added.
+
+## 22. 2026-05-15 Historical MURC imports for 2021-2025
+- **Input files:** Received local MURC Excel files `murc_2021.xls` through `murc_2025.xls` and kept them out of Git with a `murc_*.xls` ignore rule.
+- **Parser fix:** Updated the MURC importer so full-year files include trailing year-end non-business days and ignore post-summary reference rows such as the 2024-08-07 public-rate halt note.
+- **DB import:** Imported USD rows into `mufg_exchange_rates`: 2021=362, 2022=362, 2023=362, 2024=363, 2025=360. Verified 2026 currently has 117 USD rows through 2026-05-14.
+- **Cleanup:** Removed duplicate USD preferential adjustment rows created by parallel import retries, leaving one active USD standard rule effective from 1990-01-01.
