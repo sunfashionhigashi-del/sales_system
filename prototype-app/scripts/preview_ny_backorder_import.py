@@ -1,11 +1,14 @@
 """Convert the NY BackOrder workbook into a SUCCESS import preview.
 
-The script intentionally defaults to preview-only output. It classifies the
-legacy sheet into title/context rows, sellable item rows, and order-level fee
-rows so the import policy can be reviewed before any Supabase write is added.
+The script intentionally defaults to preview-only output. Use --insert to write
+to Supabase, --verify-batch-id to count an inserted batch, and
+--rollback-batch-id to delete only one inserted batch.
 
 Usage:
   python scripts/preview_ny_backorder_import.py "../サンプル/千葉 NY-Backorder  - 20221227～.xlsm"
+  python scripts/preview_ny_backorder_import.py "../サンプル/千葉 NY-Backorder  - 20221227～.xlsm" --insert
+  python scripts/preview_ny_backorder_import.py --verify-batch-id NYBO-YYYYMMDDHHMMSS
+  python scripts/preview_ny_backorder_import.py --rollback-batch-id NYBO-YYYYMMDDHHMMSS
 """
 
 from __future__ import annotations
@@ -15,6 +18,9 @@ import json
 import math
 import re
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from collections import Counter, defaultdict
 from datetime import date, datetime
 from pathlib import Path
@@ -28,6 +34,8 @@ DATA_START_ROW = 8
 LAST_SOURCE_COLUMN = 23  # W
 DEFAULT_SCAN_MAX_ROW = 6000
 DEFAULT_RATE = 120.0
+DEFAULT_INSERT_BATCH_SIZE = 300
+IMPORT_LOG_PREFIX = "Imported from NY BackOrder legacy ledger."
 
 CATEGORY_RULES: dict[str, dict[str, Any]] = {
     "a": {"name": "Trim", "osaka_rate": 0.70, "end_user_rate": 0.60},
@@ -107,6 +115,41 @@ def normalize_date(value: Any) -> str | None:
 
 def compact_join(parts: list[str]) -> str:
     return " / ".join(part for part in parts if part)
+
+
+def load_env(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if not path.exists():
+        return values
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
+def resolve_supabase_config(app_dir: Path) -> tuple[str, str]:
+    env = load_env(app_dir / ".env.local")
+    env.update(load_env(app_dir / ".env.admin.local"))
+
+    url = env.get("SUPABASE_URL") or env.get("VITE_SUPABASE_URL")
+    project_id = env.get("SUPABASE_PROJECT_ID")
+    if not url and project_id:
+        url = f"https://{project_id}.supabase.co"
+
+    key = (
+        env.get("SUPABASE_SERVICE_ROLE_KEY")
+        or env.get("SUPABASE_SECRET_KEY")
+        or env.get("VITE_SUPABASE_ANON_KEY")
+    )
+    if not url or not key:
+        raise RuntimeError(
+            "Supabase URL/key not found. Set SUPABASE_PROJECT_ID and "
+            "SUPABASE_SECRET_KEY in .env.admin.local."
+        )
+    return url.rstrip("/"), key
 
 
 def cell_value(values: tuple[Any, ...], one_based_col: int) -> Any:
@@ -432,9 +475,131 @@ def read_ny_backorder_rows(xlsm_path: Path, scan_max_row: int = DEFAULT_SCAN_MAX
     return {"summary": summary, "rows": rows}
 
 
+def make_batch_id() -> str:
+    return "NYBO-" + datetime.now().strftime("%Y%m%d%H%M%S")
+
+
+def rows_for_insert(rows: list[dict[str, Any]], batch_id: str) -> list[dict[str, Any]]:
+    insert_rows: list[dict[str, Any]] = []
+    for row in rows:
+        clean = {key: value for key, value in row.items() if not key.startswith("_")}
+        clean["system_log"] = f"{IMPORT_LOG_PREFIX} import_batch_id={batch_id}."
+        clean["comments"] = compact_join(
+            [
+                clean.get("comments", ""),
+                f"source_ledger=NY BackOrder",
+                f"import_batch_id={batch_id}",
+            ]
+        )
+        insert_rows.append(clean)
+    return insert_rows
+
+
+def supabase_request(
+    base_url: str,
+    key: str,
+    method: str,
+    path: str,
+    payload: Any | None = None,
+    prefer: str | None = None,
+    extra_headers: dict[str, str] | None = None,
+) -> Any:
+    data = None if payload is None else json.dumps(payload).encode("utf-8")
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+    }
+    if prefer:
+        headers["Prefer"] = prefer
+    if extra_headers:
+        headers.update(extra_headers)
+
+    req = urllib.request.Request(
+        f"{base_url}/rest/v1/{path}",
+        data=data,
+        headers=headers,
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=90) as response:
+            body = response.read().decode("utf-8")
+            return json.loads(body) if body else None
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Supabase {method} {path} failed: {exc.code} {body}") from exc
+
+
+def has_existing_ny_backorder_rows(base_url: str, key: str) -> bool:
+    existing = supabase_request(
+        base_url,
+        key,
+        "GET",
+        "order_items?select=id&link_id=like.NYBO-*&limit=1",
+    )
+    return bool(existing)
+
+
+def insert_to_supabase(base_url: str, key: str, rows: list[dict[str, Any]]) -> None:
+    for start in range(0, len(rows), DEFAULT_INSERT_BATCH_SIZE):
+        batch = rows[start : start + DEFAULT_INSERT_BATCH_SIZE]
+        supabase_request(
+            base_url,
+            key,
+            "POST",
+            "order_items",
+            batch,
+            prefer="return=minimal",
+        )
+
+
+def batch_filter_path(batch_id: str, select: str | None = None, limit: int | None = None) -> str:
+    pattern = urllib.parse.quote(f"*import_batch_id={batch_id}*", safe="*=._-")
+    if select is None:
+        return f"order_items?system_log=like.{pattern}"
+    path = f"order_items?select={urllib.parse.quote(select)}&system_log=like.{pattern}"
+    if limit is not None:
+        path += f"&limit={limit}"
+    return path
+
+
+def count_batch_rows(base_url: str, key: str, batch_id: str) -> int:
+    total = 0
+    page_size = 1000
+    while True:
+        rows = supabase_request(
+            base_url,
+            key,
+            "GET",
+            batch_filter_path(batch_id, select="id"),
+            extra_headers={"Range": f"{total}-{total + page_size - 1}"},
+        )
+        count = len(rows or [])
+        total += count
+        if count < page_size:
+            return total
+
+
+def rollback_batch(base_url: str, key: str, batch_id: str) -> int:
+    before = count_batch_rows(base_url, key, batch_id)
+    if before == 0:
+        return 0
+    supabase_request(
+        base_url,
+        key,
+        "DELETE",
+        batch_filter_path(batch_id),
+        prefer="return=minimal",
+    )
+    after = count_batch_rows(base_url, key, batch_id)
+    if after:
+        raise RuntimeError(f"Rollback incomplete for {batch_id}: {after} rows remain.")
+    return before
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("xlsm_path", type=Path)
+    parser.add_argument("xlsm_path", type=Path, nargs="?")
     parser.add_argument(
         "--preview-json",
         type=Path,
@@ -447,9 +612,45 @@ def main() -> int:
         default=DEFAULT_SCAN_MAX_ROW,
         help="Maximum worksheet row to scan. The current NY source has data through row 5329.",
     )
+    parser.add_argument("--insert", action="store_true", help="Insert converted rows into Supabase.")
+    parser.add_argument(
+        "--allow-duplicates",
+        action="store_true",
+        help="Allow inserting even if NYBO rows already exist in order_items.",
+    )
+    parser.add_argument(
+        "--batch-id",
+        default=None,
+        help="Import batch id to stamp into system_log/comments. Defaults to NYBO-YYYYMMDDHHMMSS.",
+    )
+    parser.add_argument(
+        "--rollback-batch-id",
+        default=None,
+        help="Delete only rows imported with this NY BackOrder batch id, then exit.",
+    )
+    parser.add_argument(
+        "--verify-batch-id",
+        default=None,
+        help="Count rows imported with this NY BackOrder batch id, then exit.",
+    )
     args = parser.parse_args()
 
     app_dir = Path(__file__).resolve().parents[1]
+    if args.verify_batch_id:
+        base_url, key = resolve_supabase_config(app_dir)
+        rows = count_batch_rows(base_url, key, args.verify_batch_id)
+        print(json.dumps({"verify_batch_id": args.verify_batch_id, "rows": rows}, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.rollback_batch_id:
+        base_url, key = resolve_supabase_config(app_dir)
+        deleted = rollback_batch(base_url, key, args.rollback_batch_id)
+        print(json.dumps({"rollback_batch_id": args.rollback_batch_id, "deleted_rows": deleted}, ensure_ascii=False, indent=2))
+        return 0
+
+    if not args.xlsm_path:
+        raise RuntimeError("xlsm_path is required unless --rollback-batch-id is used.")
+
     xlsm_path = args.xlsm_path
     if not xlsm_path.is_absolute():
         xlsm_path = (Path.cwd() / xlsm_path).resolve()
@@ -462,6 +663,23 @@ def main() -> int:
 
     print(json.dumps(result["summary"], ensure_ascii=False, indent=2))
     print(f"Preview written to {preview_path}")
+
+    if not args.insert:
+        print("Dry run only. No Supabase changes were made.")
+        return 0
+
+    base_url, key = resolve_supabase_config(app_dir)
+    if not args.allow_duplicates and has_existing_ny_backorder_rows(base_url, key):
+        raise RuntimeError(
+            "Existing NYBO rows were found in Supabase. "
+            "Rollback the earlier batch or re-run with --allow-duplicates if duplicate import is intentional."
+        )
+
+    batch_id = args.batch_id or make_batch_id()
+    db_rows = rows_for_insert(result["rows"], batch_id)
+    insert_to_supabase(base_url, key, db_rows)
+    inserted = count_batch_rows(base_url, key, batch_id)
+    print(json.dumps({"import_batch_id": batch_id, "inserted_rows": inserted}, ensure_ascii=False, indent=2))
     return 0
 
 

@@ -215,3 +215,9 @@ React 環境のコンポーネントにおける「行分割」「加工・セ�
 - **Fee policy:** Handling Fee, International Freight, Insurance, Cutting Fee, Dye, Setup, and other charge rows convert into linked `Order charge` rows under the same `NYBO-<PO>` `link_id`.
 - **Structure decision:** No immediate SUCCESS database schema change is required. The current `order_items` columns can support Mobiron, NY BackOrder, and the upcoming China ledger through a common row-based import style. A future optional enhancement would be `source_ledger`, `source_row`, and `legacy_line_type` columns for easier auditing.
 - **Verification:** Preview run scanned through row 5,329 and produced 4,258 converted rows: 2,452 detail rows and 1,806 fee rows. It excluded 1,018 title rows and left 31 exceptional rows unclassified for later policy review. Osaka-to-NY formula checks passed for most rows, with 119 mismatches out of 2,016 checked rows. End User theoretical pricing differed in 1,413 out of 2,015 checked rows, confirming the user-facing price must be preserved as a manual legacy value.
+
+## 27. 2026-05-15 NY BackOrder rollbackable import
+- **Implementation:** Extended `prototype-app/scripts/preview_ny_backorder_import.py` with `--insert`, `--verify-batch-id`, and `--rollback-batch-id`. Inserted rows are stamped with `import_batch_id=<batch>` in both `system_log` and `comments`.
+- **DB import:** Inserted the NY BackOrder conversion into Supabase batch `NYBO-20260515174348`.
+- **Verification:** `python -m py_compile scripts/preview_ny_backorder_import.py` succeeded. `--verify-batch-id NYBO-20260515174348` counted 4,258 rows. A Supabase readback for `NYBO-4012 (4/24/26)` returned 8 rows: 6 product details plus `HANDLING_FEE` and `INTERNATIONAL_FREIGHT`.
+- **Rollback:** The exact rollback command is `python scripts/preview_ny_backorder_import.py --rollback-batch-id NYBO-20260515174348`. It deletes only rows whose `system_log` includes this batch id.

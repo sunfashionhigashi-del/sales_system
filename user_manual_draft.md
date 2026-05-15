@@ -138,3 +138,9 @@
 - Handling Fee や International Freight など、オーダー単位で発生する費用は、通常明細とは別の費用明細行として同じオーダー番号にリンクします。
 - 大阪からNY向けの価格は旧Excelの掛率ロジックと照合しますが、End User向け価格は手動値として扱い、SUCCESS側で自動上書きしません。
 - `??` のような未確定金額は数値に変換せず、コメントに「金額未確定」と残して後で確認できるようにします。
+
+## 2026-05-15 NY BackOrder 取り込み後の確認と戻し方
+- NY BackOrderはSupabaseへ投入済みです。投入バッチIDは `NYBO-20260515174348` です。
+- SUCCESS画面では、検索欄で `NYBO-`、`4012 (4/24/26)`、`Sun Fashion America`、`HANDLING_FEE`、`INTERNATIONAL_FREIGHT` などを検索すると取り込み結果を確認できます。
+- 件数確認は `cd prototype-app` 後に `python scripts/preview_ny_backorder_import.py --verify-batch-id NYBO-20260515174348` を実行します。
+- 問題があって取り消す場合は `python scripts/preview_ny_backorder_import.py --rollback-batch-id NYBO-20260515174348` を実行します。この操作は同じバッチIDのNY BackOrder行だけを削除します。

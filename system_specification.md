@@ -151,3 +151,8 @@ If any logic, UI, or architecture is updated in the codebase during a session, t
 - Regular item rows map to the existing `order_items` schema: SF America is treated as the customer, the legacy customer becomes `end_user`, SF Osaka is treated as supplier, Osaka-to-NY price maps to `sales_price`, End User price maps to `end_user_price`, purchase JPY maps to `cost_price`, and the legacy 90/120 rate maps to `internal_rate`.
 - Handling Fee, International Freight, Insurance, Cutting Fee, Dye, Setup, and other charge lines are represented as linked fee rows in the same order block with `category='Order charge'` and a normalized `item_code` such as `HANDLING_FEE` or `INTERNATIONAL_FREIGHT`.
 - SUCCESS does not currently require a database schema change for this workbook because `link_id`, `comments`, `system_log`, `end_user_price`, and `markup_rate` can preserve the legacy source and the three-price-layer structure. If later imports need stronger audit/search, add optional `source_ledger`, `source_row`, and `legacy_line_type` columns rather than making a separate table per legacy workbook.
+
+## 2026-05-15 NY BackOrder rollbackable Supabase import
+- `preview_ny_backorder_import.py` now supports `--insert`, `--verify-batch-id`, and `--rollback-batch-id`. Every inserted row is stamped with `import_batch_id=<batch>` in `system_log` and `comments`.
+- The first NY BackOrder Supabase import was inserted under batch `NYBO-20260515174348`. Verification counted 4,258 rows, matching the preview conversion count.
+- Rollback is scoped to the batch id only, so `python scripts/preview_ny_backorder_import.py --rollback-batch-id NYBO-20260515174348` deletes this NY BackOrder import without touching Mobiron or manually entered rows.
