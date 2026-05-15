@@ -149,4 +149,5 @@
 - LAとEUのBackOrder台帳も、NYと同じようにプレビュー、投入、件数確認、ロールバックができる共通スクリプトで扱います。
 - LAは `python scripts/preview_regional_backorder_import.py "..\サンプル\千葉 LA-Backorder  - 20221227～.xlsm" --region LA` でプレビューします。
 - EUは `python scripts/preview_regional_backorder_import.py "..\サンプル\千葉 EU-Backorder  - 20221227～ .xlsm" --region EU` でプレビューします。
+- EUはSun Fashion Americaを通さないため、顧客名はそのまま販売先として扱い、販売単価は顧客向けUSD単価、仕入はJPY原価として取り込みます。
 - まだLA/EUはSupabaseへ投入していません。投入時は `--insert` を付け、戻す場合は生成された `LABO-...` または `EUBO-...` のバッチIDでロールバックします。

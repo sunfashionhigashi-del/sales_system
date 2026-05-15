@@ -160,5 +160,5 @@ If any logic, UI, or architecture is updated in the codebase during a session, t
 ## 2026-05-15 Regional BackOrder import bridge for LA/EU
 - Added `prototype-app/scripts/preview_regional_backorder_import.py` to handle NY, LA, and EU BackOrder ledgers with the same preview/insert/verify/rollback contract.
 - LA uses the same title/detail/fee-row structure as NY, but the Osaka-to-NY price is validated as `End User price × category factor` rather than `purchase ÷ rate ÷ factor`. LA preview currently converts 3,637 rows: 2,313 details and 1,324 fee rows.
-- EU uses `EU BackOrder`, has no category code control in the same way, and preserves the internal outgoing price as JPY while keeping the end-user unit price separately. EU preview currently converts 1,747 rows: 1,135 details and 612 fee rows.
+- EU uses `EU BackOrder` and is direct business that does not pass through Sun Fashion America. The legacy customer is therefore mapped to `customer`/`end_user`, `sales_price` is the customer-facing USD unit price, and purchase/internal cost remains JPY. EU preview currently converts 1,748 rows: 1,222 details and 526 fee rows.
 - No LA/EU rows have been inserted yet. They can be inserted later with `--insert` and rolled back by the generated `LABO-...` or `EUBO-...` batch id.

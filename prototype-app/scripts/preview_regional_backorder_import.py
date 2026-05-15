@@ -46,6 +46,7 @@ FILL_DOWN_BLOCK = False
 PRICING_MODE = "cost_to_osaka"
 SALES_CURRENCY = "USD"
 END_USER_CURRENCY = "USD"
+DIRECT_CUSTOMER = False
 
 COLUMN_MAP: dict[str, int | tuple[int, ...]] = {
     "category_code": 2,
@@ -93,6 +94,7 @@ REGION_CONFIGS: dict[str, dict[str, Any]] = {
         "pricing_mode": "cost_to_osaka",
         "sales_currency": "USD",
         "end_user_currency": "USD",
+        "direct_customer": False,
     },
     "LA": {
         "sheet": "LA BackOrder",
@@ -113,6 +115,7 @@ REGION_CONFIGS: dict[str, dict[str, Any]] = {
         "pricing_mode": "end_user_to_osaka",
         "sales_currency": "USD",
         "end_user_currency": "USD",
+        "direct_customer": False,
     },
     "EU": {
         "sheet": "EU BackOrder",
@@ -122,9 +125,9 @@ REGION_CONFIGS: dict[str, dict[str, Any]] = {
         "rules": {},
         "column_map": {
             **COLUMN_MAP,
-            "sales_price": 16,
-            "sales_subtotal": 17,
-            "cost_price": (19, 18),
+            "sales_price": 11,
+            "sales_subtotal": 12,
+            "cost_price": (19, 16, 18),
             "cost_subtotal": (20, 17),
             "memo": 18,
             "internal_rate": 21,
@@ -134,8 +137,9 @@ REGION_CONFIGS: dict[str, dict[str, Any]] = {
         "fill_down_block": True,
         "scan_max_row": 3000,
         "pricing_mode": "none",
-        "sales_currency": "JPY",
+        "sales_currency": "USD",
         "end_user_currency": "USD",
+        "direct_customer": True,
     },
 }
 
@@ -155,7 +159,7 @@ def apply_region_config(region: str) -> None:
     global SOURCE_SHEET, DATA_START_ROW, LAST_SOURCE_COLUMN, DEFAULT_SCAN_MAX_ROW
     global IMPORT_LOG_PREFIX, LEDGER_NAME, LINK_PREFIX, CATEGORY_RULES, COLUMN_MAP
     global CATEGORY_FALLBACK, TITLE_REQUIRES_BLOCK, FILL_DOWN_BLOCK, PRICING_MODE
-    global SALES_CURRENCY, END_USER_CURRENCY
+    global SALES_CURRENCY, END_USER_CURRENCY, DIRECT_CUSTOMER
 
     if region not in REGION_CONFIGS:
         raise RuntimeError(f"Unsupported region: {region}. Choose one of {', '.join(REGION_CONFIGS)}.")
@@ -171,6 +175,7 @@ def apply_region_config(region: str) -> None:
     PRICING_MODE = config["pricing_mode"]
     SALES_CURRENCY = config["sales_currency"]
     END_USER_CURRENCY = config["end_user_currency"]
+    DIRECT_CUSTOMER = config["direct_customer"]
     DEFAULT_SCAN_MAX_ROW = config.get("scan_max_row", 6000)
     IMPORT_LOG_PREFIX = f"Imported from {LEDGER_NAME} legacy ledger."
 
@@ -368,6 +373,8 @@ def fee_description(row: dict[str, Any]) -> str:
 def is_fee_row(row: dict[str, Any]) -> bool:
     if row["category_code"]:
         return False
+    if row["article"] and not any(term in row["article"].lower() for term in FEE_PATTERNS):
+        return False
     description = fee_description(row).lower()
     return bool(row["po"] and row["customer"] and any(term in description for term in FEE_PATTERNS))
 
@@ -433,6 +440,9 @@ def make_success_row(row: dict[str, Any], row_index: int, title: dict[str, Any] 
     item_name = description if line_type == "fee" else compact_join([title.get("article", "") if title else "", row["article"] or row["color"]])
     qty = row["qty"] if row["qty"] is not None else (1.0 if line_type == "fee" else None)
     sales_price = row["sales_price"] if row["sales_price"] is not None else row["end_user_price"]
+    customer = row["customer"] if DIRECT_CUSTOMER else DEFAULT_CUSTOMER
+    end_user = row["customer"]
+    end_user_price = None if DIRECT_CUSTOMER else row["end_user_price"]
 
     comments = [
         f"{LEDGER_NAME} Excel row {row_index}",
@@ -468,8 +478,8 @@ def make_success_row(row: dict[str, Any], row_index: int, title: dict[str, Any] 
         "order_date": None,
         "customer_po": row["po"],
         "rep": "千葉",
-        "customer": DEFAULT_CUSTOMER,
-        "end_user": row["customer"],
+        "customer": customer,
+        "end_user": end_user,
         "supplier": DEFAULT_SUPPLIER,
         "category": rule["name"] if rule else ("Order charge" if line_type == "fee" else CATEGORY_FALLBACK),
         "item_code": item_code,
@@ -487,7 +497,7 @@ def make_success_row(row: dict[str, Any], row_index: int, title: dict[str, Any] 
         "markup_rate": "手動(現法)" if line_type == "fee" else (f"{LEDGER_NAME} formula" if rule else "Legacy manual"),
         "sales_price": sales_price,
         "sales_currency": SALES_CURRENCY,
-        "end_user_price": row["end_user_price"],
+        "end_user_price": end_user_price,
         "end_user_currency": END_USER_CURRENCY,
         "misc_cost": 0,
         "misc_currency": "JPY",
